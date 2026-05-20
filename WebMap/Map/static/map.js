@@ -1,3 +1,4 @@
+//simple map
 var map = L.map('map', {
     crs: L.CRS.Simple,
     minZoom: -2
@@ -7,6 +8,8 @@ var bounds = [
     [0, 0],
     [1000, 1000]
 ];
+
+//Custom map using svg
 map.fitBounds(bounds);
 L.imageOverlay(
   '/static/hallways.svg',
@@ -16,6 +19,9 @@ L.imageOverlay(
 var videoUrl = "C:/Users/sabri/Downloads/evernight-everknight.gif"
 L.videoOverlay(videoUrl, bounds).addTo(map);
 
+
+
+//Positioning coordinates location to bottom left
 var coordControl = L.control({
     position: 'bottomleft'
 });
@@ -29,9 +35,17 @@ coordControl.onAdd = function (map) {
 
 coordControl.addTo(map);
 
+var locations = JSON.parse(document.getElementById("locations-data").textContent);
+
+locations.forEach(function(loc){
+    L.marker([loc.y_coordinate, loc.x_coordinate]).addTo(map).bindPopup(loc.room_name)
+})
+
 map.on('mousemove', function (e) {
     coordControl._div.innerHTML = "Lat: " + e.latlng.lat.toFixed(4) + " | Lng: " + e.latlng.lng.toFixed(4);
 });
+
+//Pathfinding visualization
 
 var path = JSON.parse(document.getElementById("path-data").textContent);
 
@@ -54,3 +68,21 @@ L.polyline.antPath(path, {
 
 console.log("PATH:", path);
 console.log("PATH LENGTH:", path.length);
+
+//mouse click event listener
+let selected = []
+
+map.on('click', function(){
+    selected.push(roomName)
+});
+
+fetch("/index/",{
+    method: "POST",
+    headers: {
+        "Content-type": "application/json"
+    },
+    body : JSON.stringify({
+        start: "test1",
+        end: "test2"
+    })
+})

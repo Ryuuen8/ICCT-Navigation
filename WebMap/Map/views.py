@@ -1,12 +1,17 @@
 from django.shortcuts import render
 from django.templatetags.static import static
-from django.http import HttpResponse
+from django.http import JsonResponse
 from folium.plugins import MousePosition, AntPath, Search
 from .models import Location, Connection 
 import folium
+import json
 import networkx as nx
 # Create your views here.
 
+
+
+def testresponse(Request):
+    pass
 
 #Pathfinding for the map using networtx for the a* algo
 def index(request):
@@ -35,7 +40,11 @@ def index(request):
 
         return ((ax - bx)**2 + (ay - by)**2) ** 0.5
     
-    path = nx.astar_path(G, 'Test', 'Test1', heuristic=heuristic,weight="weight")
+    data = json.loads(request.body)
+    start = data("start")
+    end = data("end")
+
+    path = nx.astar_path(G, start, end, heuristic=heuristic,weight="weight")
     full_coords = []
 
     for node in path:
