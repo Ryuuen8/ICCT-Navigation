@@ -2,16 +2,67 @@ from django.shortcuts import render
 from django.templatetags.static import static
 from django.http import JsonResponse
 from folium.plugins import MousePosition, AntPath, Search
-from .models import Location, Connection 
+from .models import Location, Connection
+from django.views.decorators.csrf import ensure_csrf_cookie
 import folium
 import json
 import networkx as nx
 # Create your views here.
 
 
+@ensure_csrf_cookie
+def pathfind(request):
 
-def testresponse(Request):
-    pass
+    if request.method != "POST":
+        return JsonResponse({
+            "error": "POST request required"
+        }, status=400)
+
+    data = json.loads(request.body)
+
+    start = data["start"]
+    end = data["end"]
+
+    G = nx.Graph()
+
+    locations = Location.objects.all()
+
+    for loc in locations:
+        G.add_node(
+            loc.room_name,
+            pos=(loc.x_coordinate, loc.y_coordinate)
+        )
+
+    for conn in Connection.objects.all():
+        G.add_edge(
+            conn.from_location.room_name,
+            conn.to_location.room_name,
+            weight=conn.cost
+        )
+
+    def heuristic(a, b):
+        ax, ay = G.nodes[a]["pos"]
+        bx, by = G.nodes[b]["pos"]
+
+        return ((ax - bx)**2 + (ay - by)**2) ** 0.5
+
+    path = nx.astar_path(
+        G,
+        start,
+        end,
+        heuristic=heuristic,
+        weight="weight"
+    )
+
+    full_coords = []
+
+    for node in path:
+        x, y = G.nodes[node]["pos"]
+        full_coords.append([y, x])
+
+    return JsonResponse({
+        "path": full_coords
+    })
 
 #Pathfinding for the map using networtx for the a* algo
 def index(request):
@@ -39,21 +90,10 @@ def index(request):
         bx, by = G.nodes[b]["pos"]
 
         return ((ax - bx)**2 + (ay - by)**2) ** 0.5
-    
-    data = json.loads(request.body)
-    start = data("start")
-    end = data("end")
 
-    path = nx.astar_path(G, start, end, heuristic=heuristic,weight="weight")
-    full_coords = []
-
-    for node in path:
-        x, y = G.nodes[node]["pos"]
-        full_coords.append([y, x])
 
     return render(request, "index.html", {
         "locations": data,
-          "path": full_coords
     })
 
 #Testing for pathfinding using folium

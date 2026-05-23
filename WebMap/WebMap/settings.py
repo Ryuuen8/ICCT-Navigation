@@ -25,9 +25,18 @@ SECRET_KEY = 'django-insecure-e^=)mycw4uf88)3^ujjqpm6kiflc8_4m$*-ecoln)1&q4n417)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"
+]
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://192.168.254.197:8000",
+    "https://b849-2001-fd8-481a-aa00-5c8f-3b85-bde6-3e81.ngrok-free.app",
+]
 
+CSRF_COOKIE_SECURE =True    
+
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
 # Application definition
 
 INSTALLED_APPS = [
@@ -47,6 +56,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
 
 ROOT_URLCONF = 'WebMap.urls'

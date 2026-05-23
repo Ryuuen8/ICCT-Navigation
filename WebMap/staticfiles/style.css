@@ -1,51 +1,267 @@
+/* =========================
+   GLOBAL
+========================= */
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-}
-.header {
-        padding-top: 10px;
-        padding-bottom: 10px;
-        background-color: rgb(29, 68, 107);
-        height: 75px;
-        border: 1px;
-        display: flex;
-        gap: 500px;
-        flex-direction: row;
-        justify-content: center;
-        align-items: center;
-        border-color: black;
-    }
-.header h1{
-        color: rgb(255, 255, 255);
-    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;    
+    -webkit-tap-highlight-color: transparent;
 }
 
-.search-field {
-    
-    padding-bottom: 10px;
-    padding-top: 10px;
-    padding-left: 10px;
-    border: 2px solid #e0e0e0;
-    border-radius: 30px;
-    outline: none;
-    font-size: 15px;
-    transition: all 0.3s;
+html,
+body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    touch-action: manipulation;
 }
 
-.search-field:focus {
-    border-color: #007bff;
+body {
+    position: fixed;
+    inset: 0;
+    background: #0b1220;
+    font-family:
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
 }
 
-.item-1 h1{
-    color: rgb(255, 255, 255);
-    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
-    text-shadow: 1px 2px 4px rgb(78, 127, 42);
+/* =========================
+   MAP
+========================= */
 
+#map {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    z-index: 1;
+    background: #111827;
 }
-/*Icons*/
-.icon-button{
+
+/* Leaflet container */
+
+.leaflet-container {
+    background: #111827;
+    font-family: inherit;
+    touch-action: pan-x pan-y;
+}
+
+/* Zoom controls */
+
+.leaflet-control-zoom {
+    border: none !important;
+    border-radius: 16px !important;
+    overflow: hidden;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25) !important;
+}
+
+.leaflet-control-zoom a {
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #111 !important;
+    border: none !important;
+    width: 34px !important;
+    height: 34px !important;
+    line-height: 34px !important;
+    font-size: 18px !important;
+}
+
+/* Popup */
+
+.leaflet-popup-content-wrapper {
+    border-radius: 18px;
+    padding: 4px;
+}
+
+.leaflet-popup-content {
+    font-size: 14px;
+    margin: 10px 14px;
+}
+
+/* Marker glow */
+
+.leaflet-marker-icon {
+    filter:
+        drop-shadow(0 0 4px cyan) drop-shadow(0 0 10px rgba(0, 255, 255, 0.7));
+}
+
+/* =========================
+   COORD DISPLAY
+========================= */
+
+.coords-display {
+    background: rgba(0, 0, 0, 0.72) !important;
+    color: white;
+    padding: 8px 12px !important;
+    border-radius: 12px;
+    font-size: 12px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+/* =========================
+   APP OVERLAY
+========================= */
+
+.app-container {
+    position: absolute;
+    inset: 0;
+    z-index: 1000;
+    pointer-events: none;
+    overflow: visible !important;
+}
+
+/* =========================
+   FLOATING MENU
+========================= */
+
+.menu-container {
+    position: fixed;
+
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+
+    width: calc(100% - 24px);
+    max-width: 520px;
+
+    padding: 14px 18px 22px;
+
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
+    gap: clamp(8px, 3vw, 20px);
+
+    background: rgba(255, 255, 255, 0.72);
+
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+
+    border-radius: 30px;
+
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+
+    z-index: 1001;
+
+    pointer-events: auto;
+}
+
+/* =========================
+   MENU BUTTONS
+========================= */
+
+.menu-box {
+    width: clamp(52px, 15vw, 78px);
+    height: clamp(52px, 15vw, 78px);
+
+    background: white;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    border-radius: 22px;
+
+    transform: translateY(-38%);
+
+    transition:
+        transform 0.15s ease,
+        background 0.15s ease,
+        box-shadow 0.15s ease;
+
+    cursor: pointer;
+
+    border: none;
+    outline: none;
+
+    overflow: visible;
+
+    user-select: none;
+}
+
+.menu-box:hover {
+    box-shadow:
+        0 10px 25px rgba(0, 0, 0, 0.12);
+}
+
+.menu-box:active {
+    transform: translateY(-34%) scale(0.93);
+    background: #eef7fb;
+}
+
+/* Icons */
+
+.menu-box i {
+    font-size: clamp(22px, 7vw, 34px);
+    color: #19c3e6;
+
+    transition:
+        color 0.15s ease,
+        transform 0.15s ease;
+
+    pointer-events: none;
+}
+
+.menu-box:active i {
+    color: #0e9dc0;
+    transform: scale(0.95);
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 768px) {
+
+    .coords-display {
+        font-size: 10px;
+        padding: 6px 10px !important;
+    }
+
+    .menu-container {
+        bottom: 10px;
+        padding: 12px 14px 18px;
+        border-radius: 24px;
+    }
+
+    .menu-box {
+        border-radius: 18px;
+    }
+}
+
+/* Landscape phones */
+
+@media (max-height: 500px) and (orientation: landscape) {
+
+    .menu-container {
+        padding: 8px 12px 14px;
+    }
+
+    .menu-box {
+        width: 48px;
+        height: 48px;
+        transform: translateY(-32%);
+    }
+
+    .menu-box i {
+        font-size: 20px;
+    }
+}
+
+/* Safe area for iPhones */
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+
+    .menu-container {
+        padding-bottom:
+            max(18px, env(safe-area-inset-bottom));
+    }
 }

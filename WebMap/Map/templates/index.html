@@ -13,31 +13,67 @@
                     integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
                     crossorigin=""></script>
             <script src="https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+            <script>
+                eruda.init();
+            </script>
+            <script id="csrf-data">
+                function getCookie(name) {
+                    let cookieValue = null;
+
+                    if (document.cookie && document.cookie !== '') {
+
+                        const cookies = document.cookie.split(';');
+
+                        for (let i = 0; i < cookies.length; i++) {
+
+                            const cookie = cookies[i].trim();
+
+                            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+
+                                cookieValue = decodeURIComponent(
+                                    cookie.substring(name.length + 1)
+                                );
+
+                                break;
+                            }
+                        }
+                    }
+
+                    return cookieValue;
+                }
+
+                const csrftoken = getCookie('csrftoken');
+            </script>
             <title>Document</title>
         </head>
         <body>
-            <div class="Header">
-                <img src="{% static 'apple-maps.svg' %}" alt="test" height="50" width="50">
-                <div class="item-1">
-                    <h1>Navigation</h1>
+            <!-- Leaflet map -->
+            <div id="map"></div>
+            <!-- UI Overlay -->
+            <div class="app-container">
+                <div class="menu-container">
+                    <div class="menu-box">
+                        <i class="fa-solid fa-book"></i>
+                    </div>
+                    <div class="menu-box">
+                        <i class="fa-solid fa-desktop"></i>
+                    </div>
+                    <div class="menu-box">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+                    <div class="menu-box">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="menu-box">
+                        <i class="fa-solid fa-phone"></i>
+                    </div>
                 </div>
-                <input type="text" placeholder="Search.." class="search-field">
             </div>
-            <div class="icon-button">
-                <button class="btn-exit">
-                    <img src="{% static 'Exit_icon.svg' %}"
-                         alt="test"
-                         height="125"
-                         width="125">
-                    <a href="https://www.youtube.com/results?search_query=umapyoi+densetsu"></a>
-                </button>
-                <h1>Test2</h1>
-            </div>
-            <div id="map">
-                {{ locations|json_script:"locations-data" }}
-                {{ path|json_script:"path-data" }}
-                <script src="{% static "map.js" %}"></script>
-            </div>
+            <!-- Leaflet JS -->
+            {{ locations|json_script:"locations-data" }}
+            {{ path|json_script:"path-data" }}
+            <script src="{% static "map.js" %}"></script>
         </body>
     </html>
 {% endblock %}

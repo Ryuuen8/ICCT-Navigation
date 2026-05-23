@@ -10,6 +10,7 @@ django-leaflet==0.33.0
 djlint==1.36.4
 EditorConfig==0.17.1
 folium==0.20.0
+gunicorn==26.0.0
 idna==3.15
 Jinja2==3.1.6
 jsbeautifier==1.15.4
@@ -30,4 +31,5 @@ sqlparse==0.5.5
 tqdm==4.67.3
 tzdata==2026.2
 urllib3==2.7.0
+whitenoise==6.12.0
 xyzservices==2026.3.0
