@@ -1,3 +1,80 @@
+var map = L.map('map', {
+    crs: L.CRS.Simple,
+    minZoom: -2,
+    maxZoom: 3,
+    zoomSnap: 0.25,
+    zoomDelta: 0.25,
+    wheelPxPerZoomLevel: 120,
+    touchZoom: true,
+    tap: true,
+    bounceAtZoomLimits: false
+});
+
+var bounds = [[0, 0], [1000, 1000]];
+
+// IMAGE OVERLAY
+L.imageOverlay('/static/hallways.svg', bounds).addTo(map);
+
+map.fitBounds(bounds, {
+    padding: window.innerWidth < 768 ? [40, 40] : [20, 20]
+});
+
+map.setMaxBounds(bounds);
+map.options.maxBoundsViscosity = 1.0;
+
+// throttle resize (important for mobile FPS)
+let resizeTimeout;
+window.addEventListener("resize", () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        map.invalidateSize();
+        map.fitBounds(bounds, {
+            padding: window.innerWidth < 768 ? [40, 40] : [20, 20]
+        });
+    }, 150);
+});
+
+function getCSRFToken() {
+    const match = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='));
+
+    return match ? match.split('=')[1] : null;
+}
+
+var coordControl = L.control({ position: 'bottomleft' });
+
+coordControl.onAdd = function () {
+    this._div = L.DomUtil.create('div', 'coords-display');
+    this._div.innerHTML = "Move around map";
+    return this._div;
+};
+
+coordControl.addTo(map);
+
+map.on('mousemove', function (e) {
+    coordControl._div.innerHTML =
+        "Y: " + e.latlng.lat.toFixed(1) +
+        " | X: " + e.latlng.lng.toFixed(1);
+});
+
+var path = JSON.parse(document.getElementById("path-data").textContent);
+
+let staticPathLayer = null;
+let currentPath = null;
+
+// initial path (ONLY ONE antPath)
+if (path.length > 0) {
+    staticPathLayer = L.polyline.antPath(path, {
+        color: "#00E5FF",
+        weight: 6,
+        opacity: 0.4,
+        delay: 800,
+        pulseColor: "#FFFFFF"
+    }).addTo(map);
+}
+
+
 let selected = [];
 
 var locations = JSON.parse(
