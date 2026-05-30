@@ -90,6 +90,15 @@ body::-webkit-scrollbar {
     cursor: pointer;
 }
 
+.action-card a {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: inherit;
+    text-decoration: none;
+}
+
 .action-card i {
     font-size: 2.7rem;
     margin-bottom: 12px;
@@ -141,13 +150,14 @@ body::-webkit-scrollbar {
     box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
 }
 
-.quick-item a {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: inherit;
-    text-decoration: none;
+.quick-grid button {
+    all: unset;
+    cursor: pointer;
+}
+
+.quick-grid button:active .quick-item {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+    transform: translateY(1px);
 }
 
 .quick-item i {
@@ -159,6 +169,221 @@ body::-webkit-scrollbar {
 .quick-item span {
     font-size: .65rem;
     text-align: center;
+}
+
+/* Popup Overlay */
+#test {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+#test.show {
+    display: flex;
+    animation: fadeIn 0.3s ease;
+}
+
+/* Popup Container */
+#test .popup-container {
+    background: #f5f5f5;
+    border-radius: 24px;
+    width: 90%;
+    max-width: 380px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 20px;
+    animation: slideUp 0.3s ease;
+}
+
+/* Popup Header */
+#test .popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+#test .popup-header h2 {
+    font-size: 1.5rem;
+    color: #04145d;
+    font-weight: 700;
+    margin: 0;
+}
+
+#test .close-btn {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+#test .close-btn:active {
+    background: #e0e0e0;
+}
+
+/* Popup Subtitle */
+#test .popup-subtitle {
+    color: #666;
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+}
+
+/* Floor List */
+#test .popup-floor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+/* Floor Card */
+#test .popup-floor-card {
+    background: white;
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid #e0e0e0;
+}
+
+#test .popup-floor-card:active {
+    transform: scale(0.98);
+    background: #f8f8f8;
+}
+
+/* Floor Circle */
+#test .floor-circle {
+    width: 60px;
+    height: 60px;
+    background: #04145d;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+/* Different colors for floors */
+#test .popup-floor-card[data-floor="5"] .floor-circle {
+    background: #1e3a8a;
+}
+
+#test .popup-floor-card[data-floor="4"] .floor-circle {
+    background: #2563eb;
+}
+
+#test .popup-floor-card[data-floor="3"] .floor-circle {
+    background: #3b82f6;
+}
+
+#test .popup-floor-card[data-floor="2"] .floor-circle {
+    background: #60a5fa;
+}
+
+#test .popup-floor-card[data-floor="g"] .floor-circle {
+    background: #93c5fd;
+    color: #04145d;
+}
+
+/* Floor Details */
+#test .floor-details {
+    flex: 1;
+}
+
+#test .floor-details h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #04145d;
+    margin-bottom: 4px;
+}
+
+#test .floor-details p {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+/* Tip Section */
+#test .popup-tip {
+    background: #f0f4ff;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-top: 10px;
+}
+
+#test .popup-tip i {
+    color: #04145d;
+    font-size: 1rem;
+    margin-top: 2px;
+}
+
+#test .popup-tip p {
+    color: #04145d;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    flex: 1;
+    margin: 0;
+}
+
+/* Scrollbar */
+#test .popup-container::-webkit-scrollbar {
+    width: 4px;
+}
+
+#test .popup-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+#test .popup-container::-webkit-scrollbar-thumb {
+    background: #04145d;
+    border-radius: 10px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 /* LOCATION */
@@ -245,9 +470,11 @@ body::-webkit-scrollbar {
 .scan-btn {
     width: 60px;
     height: 60px;
-    border-radius: 50%;
     background: white;
-    border: 3px solid #2d5cff;
+    background: linear-gradient(white, white) padding-box,
+        linear-gradient(to right, rgb(93, 93, 245), rgb(118, 105, 192)) border-box;
+    border-radius: 50em;
+    border: 3px solid transparent;
     margin-top: -35px;
     display: flex !important;
     justify-content: center;

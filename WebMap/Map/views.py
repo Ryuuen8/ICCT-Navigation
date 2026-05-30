@@ -4,14 +4,16 @@ from django.http import JsonResponse
 from folium.plugins import MousePosition, AntPath, Search
 from .models import Location, Connection
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
-import folium
+from django.db.models import Q
 import json
 import networkx as nx
 import math
 # Create your views here.
-
 def floormap(request):
-    return render(request, 'floor-maps.html')
+    locations = Location.objects.filter(room_name__startswith="R")
+    context = {'room_name':  locations}
+        
+    return render(request,'floor-maps.html', context)
 
 def testmap(request):
     return render(request, 'main.html')

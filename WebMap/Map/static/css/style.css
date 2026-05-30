@@ -1,6 +1,4 @@
-/* =========================
-   GLOBAL
-========================= */
+/* GLOBAL */
 
 * {
     margin: 0;
@@ -17,7 +15,7 @@ body {
     touch-action: manipulation;
 }
 
-/* Keep body neutral (don’t overpower map) */
+/* Keep body neutral */
 body {
     position: fixed;
     inset: 0;

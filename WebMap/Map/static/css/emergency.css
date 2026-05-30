@@ -1,4 +1,4 @@
-/* HEADER - MOBILE OPTIMIZED */
+/* HEADER */
 .emergency-header {
     background: #d60000;
     color: white;
@@ -24,7 +24,7 @@
     font-size: 1.2rem;
 }
 
-/* GRID - RESPONSIVE (stays 2 columns on mobile, but adjusts internally) */
+/* GRID */
 .emergency-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -123,7 +123,7 @@
     font-size: 0.8rem;
 }
 
-/* CALL BUTTON - LARGE TAP TARGET */
+/* CALL BUTTON  */
 .emergency-call {
     margin: 16px 16px 24px 16px;
     background: #d60000;

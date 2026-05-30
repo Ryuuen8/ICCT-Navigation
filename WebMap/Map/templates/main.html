@@ -8,6 +8,7 @@
 {% endblock nav_home %}
 {% block content %}
     <link rel="stylesheet" href="{% static "css/main.css" %}">
+    <script src="{% static "js/mainscript.js" %}"></script>
     <body>
         <div class="app">
             <!-- HEADER -->
@@ -24,9 +25,11 @@
             <!-- ACTION BUTTONS -->
             <section class="actions">
                 <div class="action-card navigate">
-                    <i class="fa-solid fa-route"></i>
-                    <h3>NAVIGATE</h3>
-                    <span>Find your way</span>
+                    <a href="{% url "floormap" %}">
+                        <i class="fa-solid fa-route "></i>
+                        <h3>NAVIGATE</h3>
+                        <span>Find your way</span>
+                    </a>
                 </div>
                 <div class="action-card emergency">
                     <i class="fa-solid fa-person-running"></i>
@@ -38,11 +41,9 @@
             <section class="quick-access">
                 <h4>QUICK ACCESS</h4>
                 <div class="quick-grid">
-                    <div class="quick-item">
-                        <a href="{% url 'floormap' %}">
-                            <i class="fa-solid fa-map-location-dot"></i>
-                            <span>Floor Maps</span>
-                        </a>
+                    <div class="quick-item" id="floor-btn">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                        <span>Floor Maps</span>
                     </div>
                     <div class="quick-item">
                         <i class="fa-solid fa-people-group"></i>
@@ -78,6 +79,61 @@
             <section id="contact-section">
             </section>
         </div>
+        <!-- POPUP - Floor Selection -->
+        <div id="test">
+            <div class="popup-container">
+                <div class="popup-header">
+                    <h2>Select a floor</h2>
+                    <button class="close-btn" id="closePopupBtn">&times;</button>
+                </div>
+                <p class="popup-subtitle">Tap a floor to view the map and find your way.</p>
+                <div class="popup-floor-list">
+                    <!-- 5th Floor -->
+                    <div class="popup-floor-card" data-floor="5">
+                        <div class="floor-circle">5</div>
+                        <div class="floor-details">
+                            <h3>FIFTH FLOOR</h3>
+                            <p>Lecture Rooms</p>
+                        </div>
+                    </div>
+                    <!-- 4th Floor -->
+                    <div class="popup-floor-card" data-floor="4">
+                        <div class="floor-circle">4</div>
+                        <div class="floor-details">
+                            <h3>FOURTH FLOOR</h3>
+                            <p>You can leave</p>
+                        </div>
+                    </div>
+                    <!-- 3rd Floor -->
+                    <div class="popup-floor-card" data-floor="3">
+                        <div class="floor-circle">3</div>
+                        <div class="floor-details">
+                            <h3>THIRD FLOOR</h3>
+                            <p>Lecture Rooms</p>
+                        </div>
+                    </div>
+                    <!-- 2nd Floor -->
+                    <div class="popup-floor-card" data-floor="2">
+                        <div class="floor-circle">2</div>
+                        <div class="floor-details">
+                            <h3>SECOND FLOOR</h3>
+                            <p>Labs & Rooms</p>
+                        </div>
+                    </div>
+                    <!-- Ground Floor -->
+                    <div class="popup-floor-card" data-floor="g">
+                        <div class="floor-circle">G</div>
+                        <div class="floor-details">
+                            <h3>GROUND FLOOR</h3>
+                            <p>Library & Labs</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="popup-tip">
+                    <i class="fas fa-lightbulb"></i>
+                    <p>Tip: Use the map to navigate or select a destination from the list.</p>
+                </div>
+            </div>
+        </div>
     </body>
-</html>
-{% endblock %}
+{% endblock content %}
