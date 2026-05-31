@@ -109,6 +109,33 @@ body {
     backdrop-filter: blur(10px);
 }
 
+/*Action Buttons*/
+
+.action-container {
+    position: absolute;
+    right: 0;
+    top: 25%;
+    transform: translateY(-25%);
+    transform: translateX(-25%);
+    z-index: 1000;
+}
+
+.action-container button {
+    align-items: center;
+    background-color: white;
+    border: 3px solid;
+    border-color: transparent;
+    border-radius: 50%;
+    box-shadow: 0 clamp(2px, 0.6vw, 6px) clamp(6px, 1.5vw, 14px) rgba(0, 0, 0, 0.12);
+    height: 40px;
+    width: 40px;
+}
+
+.action-container button:hover {
+    background-color: #f2f2f2;
+    cursor: pointer;
+}
+
 /*==========================
    FLOOR BUTTONs OVERLAY
 ========================= */

@@ -4,78 +4,34 @@
     active
 {% endblock nav_map %}
 {% block content %}
-    <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <link rel="stylesheet" href="{% static "css/style.css" %}">
-            <script src="{% static "js/script.js" %}"></script>
-            <link rel="stylesheet"
-                  href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
-                  integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
-                  crossorigin="" />
-            <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
-                    integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
-                    crossorigin=""></script>
-            <script src="https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.min.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-            <link rel="stylesheet"
-                  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-            <script>
-                eruda.init();
-            </script>
-            <script id="csrf-data">
-                function getCookie(name) {
-                    let cookieValue = null;
-
-                    if (document.cookie && document.cookie !== '') {
-
-                        const cookies = document.cookie.split(';');
-
-                        for (let i = 0; i < cookies.length; i++) {
-
-                            const cookie = cookies[i].trim();
-
-                            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-
-                                cookieValue = decodeURIComponent(
-                                    cookie.substring(name.length + 1)
-                                );
-
-                                break;
-                            }
-                        }
-                    }
-
-                    return cookieValue;
-                }
-
-                const csrftoken = getCookie('csrftoken');
-            </script>
-            <title>Document</title>
-        </head>
-        <body>
-            <!-- Leaflet map -->
-            <div id="map"></div>
-            <div class="floor-container">
-                <div class="fmenu-container">
-                    <button class="floors-box"
-                            id="floorBtn"
-                            aria-expanded="false"
-                            aria-controls="floorMenu">
-                        <span class="floors">Floors</span>
-                    </button>
-                    <div class="floor-menu" id="floorMenu">
-                        <button class="floor-item" data-floor="1">F1</button>
-                        <button class="floor-item" data-floor="2">F2</button>
-                        <button class="floor-item" data-floor="3">F3</button>
-                        <button class="floor-item">F4</button>
-                    </div>
-                </div>
+    <script src="{% static "js/script.js" %}"></script>
+    <!-- Leaflet map -->
+    <div id="map"></div>
+    <div class="action-container">
+        <button id="navbtn" class="navigate-button">
+            <i class="fa-solid fa-location-arrow"></i>
+        </button>
+    </div>
+    <div class="floor-container">
+        <div class="fmenu-container">
+            <button class="floors-box"
+                    id="floorBtn"
+                    aria-expanded="false"
+                    aria-controls="floorMenu">
+                <span class="floors">Floors</span>
+            </button>
+            <div class="floor-menu" id="floorMenu">
+                <button class="floor-item" data-floor="1">F1</button>
+                <button class="floor-item" data-floor="2">F2</button>
+                <button class="floor-item" data-floor="3">F3</button>
+                <button class="floor-item" data-floor="4">F4</button>
+                <button class="floor-item" data-floor="5">F5</button>
             </div>
-            {{ locations|json_script:"locations-data" }}
-            {{ path|json_script:"path-data" }}
-            <script src="{% static "js/map.js" %}"></script>
-        </body>
-    </html>
+        </div>
+    </div>
+    {{ locations|json_script:"locations-data" }}
+    {{ path|json_script:"path-data" }}
+{% endblock %}
+{% block extra_scripts %}
+    <script src="{% static "js/map.js" %}"></script>
 {% endblock %}

@@ -22,17 +22,27 @@ const bounds = [[0, 0], [1000, 1000]];
 
 const floors = {
     1: {
-        image: L.imageOverlay('/static/hallways.svg', bounds),
+        image: L.imageOverlay('/static/images/first-floor.svg', bounds),
         layer: L.layerGroup(),
         drawLayer: L.featureGroup()
     },
     2: {
-        image: L.imageOverlay('/static/hallways.svg', bounds),
+        image: L.imageOverlay('/static/images/second-floor.svg', bounds),
         layer: L.layerGroup(),
         drawLayer: L.featureGroup()
     },
     3: {
-        image: L.imageOverlay('/static/hallways.svg', bounds),
+        image: L.imageOverlay('/static/images/third-floor.svg', bounds),
+        layer: L.layerGroup(),
+        drawLayer: L.featureGroup()
+    },
+    4: {
+        image: L.imageOverlay('/static/images/fourth-floor.svg', bounds),
+        layer: L.layerGroup(),
+        drawLayer: L.featureGroup()
+    },
+    5: {
+        image: L.imageOverlay('/static/images/fifth-floor.svg', bounds),
         layer: L.layerGroup(),
         drawLayer: L.featureGroup()
     }
@@ -219,27 +229,38 @@ locations.forEach((loc) => {
 // =========================
 
 function switchFloor(floor) {
-
     if (!floors[floor]) return;
 
+    // remove current
     map.removeLayer(floors[currentFloor].image);
     map.removeLayer(floors[currentFloor].layer);
     map.removeLayer(floors[currentFloor].drawLayer);
-
+    if (currentPath) {
+        map.removeLayer(currentPath);
+    }
     currentFloor = floor;
 
+    // add new
     map.addLayer(floors[currentFloor].image);
     map.addLayer(floors[currentFloor].layer);
     map.addLayer(floors[currentFloor].drawLayer);
+
+    if (drawControl && drawControl.options && drawControl.options.edit) {
+        drawControl.options.edit.featureGroup = floors[currentFloor].drawLayer;
+    }
 }
 
-document.querySelectorAll(".floor-item").forEach(btn => {
-    btn.addEventListener("click", () => {
-        switchFloor(parseInt(btn.dataset.floor));
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".floor-item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const floor = parseInt(btn.dataset.floor, 10);
+            switchFloor(floor);
+        });
     });
 });
 
-// ======================================================
+
+/// ======================================================
 // 🧩 POLYGON ROOM EDITOR (NEW ADDITION)
 // ======================================================
 

@@ -1,7 +1,8 @@
 // =========================
 // MAP SETUP
 // =========================
-
+console.log("MAP JS LOADED");
+console.log("navbtn at load:", document.getElementById("navbtn"));
 var map = L.map('map', {
     crs: L.CRS.Simple,
     minZoom: -2,
@@ -18,16 +19,24 @@ const bounds = [[0, 0], [1000, 1000]];
 
 const floors = {
     1: {
-        image: L.imageOverlay('/static/hallways.svg', bounds),
+        image: L.imageOverlay('/static/images/first-floor.svg', bounds),
         layer: L.layerGroup()
     },
     2: {
-        image: L.imageOverlay('/static/hallways.svg', bounds),
+        image: L.imageOverlay('/static/images/second-floor.svg', bounds),
         layer: L.layerGroup()
     },
     3: {
-        image: L.imageOverlay('/static/hallways.svg', bounds),
+        image: L.imageOverlay('/static/images/third-floor.svg', bounds),
         layer: L.layerGroup()
+    },
+    4: {
+        image: L.imageOverlay('/static/images/fourth-floor.svg', bounds),
+        layer: L.layerGroup()    
+    },
+    5: {
+        image: L.imageOverlay('/static/images/fifth-floor.svg', bounds),
+        layer: L.layerGroup()    
     }
 };
 
@@ -133,7 +142,7 @@ function getCSRFToken() {
 // =========================
 // TOGGLE PATHFINDING MODE WITH COMPASS BUTTON
 // =========================
-const compassBtn = document.querySelector('.fa-compass')?.closest('.nav-item');
+const compassBtn = document.getElementById('navbtn');
 if (compassBtn) {
     compassBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -195,9 +204,8 @@ locations.forEach(function (loc) {
         // Show feedback for first selection
         if (selected.length === 1) {
             polygon.bindPopup(`
-                <b>${loc.room_name}</b><br>
-                <small>✅ Start point selected. Now click destination.</small>
-            `).openPopup();
+                BACOOR
+                `).openPopup();
             setTimeout(() => polygon.closePopup(), 1500);
         }
 
