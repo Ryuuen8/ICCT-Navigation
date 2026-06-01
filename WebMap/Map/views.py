@@ -86,18 +86,25 @@ def pathfind(request):
     else:
         allowed_direction = None
 
+    blocked_rooms = {"Library"}
+
     H = nx.DiGraph()
     H.add_nodes_from(G.nodes(data=True))
     for u, v, data in G.edges(data=True):
+        if u in blocked_rooms and u not in {start, end}:
+            continue
+        if v in blocked_rooms and v not in {start, end}:
+            continue
+
         floor_diff = data.get("floor_diff", 0)
         u_type = G.nodes[u].get("stair_type")
         v_type = G.nodes[v].get("stair_type")
 
         if allowed_direction == "up":
-            if u_type == "exit" or v_type == "exit":
+            if floor_diff != 0 and (u_type == "exit" or v_type == "exit"):
                 continue
         elif allowed_direction == "down":
-            if u_type == "entrance" or v_type == "entrance":
+            if floor_diff != 0 and (u_type == "entrance" or v_type == "entrance"):
                 continue
 
         if floor_diff == 0 or allowed_direction is None:
