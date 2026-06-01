@@ -18,7 +18,7 @@ for loc in locations_to_encode:
         border=4,
     )
     # Encode as URL with parameters
-    qr_data = f"http://localhost:8000/map/locate/?x={loc['x']}&y={loc['y']}&floor={loc['floor']}&name={loc['name']}"
+    qr_data = f"https://capstonetest-w9am.onrender.com/map/locate/?x={loc['x']}&y={loc['y']}&floor={loc['floor']}&name={loc['name']}"
     qr.add_data(qr_data)
     qr.make(fit=True)
     
