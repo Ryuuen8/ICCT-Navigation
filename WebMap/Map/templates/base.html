@@ -18,6 +18,11 @@
               href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
         <!-- Barcode Scanner -->
         <script src="https://cdn.jsdelivr.net/npm/dynamsoft-barcode-reader-bundle@11.2.4000/dist/dbr.bundle.js"></script>
+        <!-- QR Scanner Library (free alternative) -->
+        <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.css">
+        <!-- jsQR fallback for image decoding (no worker required) -->
+        <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
         <!-- Leaflet JavaScript -->
         <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
                 integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
@@ -59,15 +64,185 @@
             <link rel="stylesheet" href="{% static 'css/style.css' %}">
         {% endblock css %}
         <script>
-            async function scan() {
-                const result = await new Dynamsoft.BarcodeScanner({
-                    license: "YOUR_LICENSE_KEY_HERE",
-                    barcodeFormats: [Dynamsoft.DBR.EnumBarcodeFormat.BF_QR_CODE]
-                }).launch();
-                if (result?.barcodeResults?.length) {
-                    window.location.href = result.barcodeResults[0].barcodeText;
+            let qrScanner = null;
+
+            function processScannedUrl(scannedUrl) {
+                try {
+                    if (scannedUrl.includes('/map/locate/')) {
+                        const url = new URL(scannedUrl);
+                        const x = url.searchParams.get('x');
+                        const y = url.searchParams.get('y');
+                        const floor = url.searchParams.get('floor');
+                        const name = url.searchParams.get('name');
+
+                        sessionStorage.setItem('scannedLocation', JSON.stringify({
+                            x: parseFloat(x),
+                            y: parseFloat(y),
+                            floor: parseInt(floor),
+                            name: name
+                        }));
+
+                        window.location.href = '/map/';
+                    } else {
+                        window.location.href = scannedUrl;
+                    }
+                } catch (err) {
+                    console.error('processScannedUrl error:', err);
+                    alert('Invalid QR data');
                 }
-            };
+            }
+
+            async function scan() {
+                // Use native camera + jsQR to avoid worker import issues
+                if (qrScanner && qrScanner._stream) {
+                    // already scanning: stop
+                    try { qrScanner._stream.getTracks().forEach(t=>t.stop()); } catch(_){}
+                    qrScanner = null;
+                    const existing = document.getElementById('qr-scanner-temp');
+                    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+                    return;
+                }
+
+                const scannerContainer = document.createElement('div');
+                scannerContainer.id = 'qr-scanner-temp';
+                scannerContainer.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    z-index: 10000;
+                    background: rgba(0,0,0,0.85);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-direction: column;
+                `;
+
+                const video = document.createElement('video');
+                video.setAttribute('playsinline', '');
+                video.style.width = '100%';
+                video.style.height = 'auto';
+                video.style.maxWidth = '600px';
+                scannerContainer.appendChild(video);
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.style.marginTop = '12px';
+                scannerContainer.appendChild(cancelBtn);
+
+                document.body.appendChild(scannerContainer);
+
+                let stream = null;
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                function stopScanning() {
+                    try { if (stream) stream.getTracks().forEach(t=>t.stop()); } catch(e){}
+                    if (scannerContainer && scannerContainer.parentNode) scannerContainer.parentNode.removeChild(scannerContainer);
+                    qrScanner = null;
+                }
+
+                cancelBtn.addEventListener('click', () => { stopScanning(); });
+
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                    qrScanner = { _stream: stream };
+                    video.srcObject = stream;
+                    await video.play();
+
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+
+                    let scanning = true;
+
+                    const tick = () => {
+                        if (!scanning) return;
+                        try {
+                            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                                canvas.width = video.videoWidth;
+                                canvas.height = video.videoHeight;
+                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                                const code = jsQR(imageData.data, canvas.width, canvas.height);
+                                if (code && code.data) {
+                                    scanning = false;
+                                    stopScanning();
+                                    processScannedUrl(code.data);
+                                    return;
+                                }
+                            }
+                        } catch (err) {
+                            console.debug('scan loop error', err);
+                        }
+                        requestAnimationFrame(tick);
+                    };
+
+                    requestAnimationFrame(tick);
+                } catch (err) {
+                    console.error('Camera scan failed', err);
+                    stopScanning();
+                    alert('Camera access failed or not available. Use image upload instead.');
+                }
+            }
+
+            async function handleFileSelect(input) {
+                const file = input.files && input.files[0];
+                if (!file) return;
+
+                try {
+                    // Try ImageBitmap + jsQR first (fast and avoids workers)
+                    if ('createImageBitmap' in window) {
+                        try {
+                            const bitmap = await createImageBitmap(file);
+                            const canvas = document.createElement('canvas');
+                            canvas.width = bitmap.width;
+                            canvas.height = bitmap.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(bitmap, 0, 0);
+                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            const code = jsQR(imageData.data, canvas.width, canvas.height);
+                            if (code && code.data) {
+                                processScannedUrl(code.data);
+                                input.value = '';
+                                return;
+                            }
+                        } catch (err) {
+                            console.debug('ImageBitmap path failed', err);
+                        }
+                    }
+
+                    // Fallback: load into an HTMLImageElement and use jsQR
+                    const dataUrl = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+
+                    const img = new Image();
+                    img.src = dataUrl;
+                    await img.decode();
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, canvas.width, canvas.height);
+                    if (code && code.data) {
+                        processScannedUrl(code.data);
+                        input.value = '';
+                        return;
+                    }
+                } catch (err) {
+                    console.error('File decode failed', err);
+                }
+
+                alert('No QR code found in selected image. Try a clearer photo or a generated PNG.');
+                input.value = '';
+            }
         </script>
         {% block extra_head %}
         {% endblock extra_head %}
@@ -89,6 +264,10 @@
             </a>
             <!-- CENTER SCAN BUTTON -->
             <div id="reader" class="scan-btn-container"></div>
+            <input type="file" id="qr-file-input" accept="image/*" style="display:none" onchange="handleFileSelect(this)">
+            <a onclick="document.getElementById('qr-file-input').click()" class="scan-btn" title="Upload QR image">
+                <i class="fa fa-upload"></i>
+            </a>
             <a onclick="scan()" class="scan-btn">
                 <i class="fa fa-qrcode"></i>
             </a>

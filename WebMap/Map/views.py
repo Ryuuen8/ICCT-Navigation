@@ -10,7 +10,7 @@ import networkx as nx
 import math
 # Create your views here.
 def floormap(request):
-    locations = Location.objects.filter(Q(room_name__startswith="R") | Q(room_name__startswith="B"))
+    locations = Location.objects.exclude(Q(room_name__startswith="Point") | Q(room_name__startswith="Stair"))
     context = {'room_name':  locations}
         
     return render(request,'floor-maps.html', context)
@@ -21,7 +21,46 @@ def testmap(request):
 def emergency(request):
     return render(request, 'emergencty.html')
 
- # API: pathfinding endpoint
+
+def locate(request):
+    """Handle QR code scans with coordinates.
+    
+    Expects URL params: x, y, floor, name
+    Returns JSON with location info or redirects to map view.
+    """
+    x = request.GET.get('x')
+    y = request.GET.get('y')
+    floor = request.GET.get('floor')
+    name = request.GET.get('name')
+    
+    if not all([x, y, floor]):
+        return JsonResponse({"error": "Missing coordinates"}, status=400)
+    
+    try:
+        x = float(x)
+        y = float(y)
+        floor = int(floor)
+    except ValueError:
+        return JsonResponse({"error": "Invalid coordinate format"}, status=400)
+    
+    # Try to find the location by name if provided
+    location = None
+    if name:
+        location = Location.objects.filter(room_name__iexact=name).first()
+    
+    return JsonResponse({
+        "x": x,
+        "y": y,
+        "floor": floor,
+        "name": name,
+        "location": {
+            "room_name": location.room_name,
+            "floor": location.floor_location,
+            "x": location.x_coordinate,
+            "y": location.y_coordinate,
+        } if location else None
+    })
+
 def pathfind(request):
     """Handle POST requests to compute a path between two rooms.
 

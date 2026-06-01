@@ -131,6 +131,51 @@ var path = JSON.parse(
     document.getElementById("path-data").textContent
 );
 
+// HANDLE SCANNED QR CODE LOCATION
+function handleScannedLocation() {
+    const scannedData = sessionStorage.getItem('scannedLocation');
+    if (!scannedData) return;
+    
+    try {
+        const location = JSON.parse(scannedData);
+        sessionStorage.removeItem('scannedLocation');
+        
+        // Switch to the correct floor
+        currentFloor = location.floor;
+        switchFloor(location.floor);
+        
+        // Create a marker at the scanned coordinates
+        const marker = L.circleMarker([location.y, location.x], {
+            radius: 15,
+            fillColor: '#FF6B6B',
+            color: '#FF0000',
+            weight: 3,
+            opacity: 1,
+            fillOpacity: 0.7,
+            zIndex: 1000
+        });
+        
+        marker.bindPopup(`
+            <div style="text-align: center; padding: 10px;">
+                <strong>${location.name || 'QR Location'}</strong><br>
+                X: ${location.x.toFixed(2)}<br>
+                Y: ${location.y.toFixed(2)}<br>
+                Floor: ${location.floor}
+            </div>
+        `);
+        
+        floors[location.floor].layer.addLayer(marker);
+        marker.openPopup();
+        
+        // Center map on the scanned location
+        map.setView([location.y, location.x], 2);
+        
+        console.log('Scanned location displayed:', location);
+    } catch (error) {
+        console.error('Error handling scanned location:', error);
+    }
+}
+
 const currentPathLayers = [];
 
 function clearCurrentPath() {
@@ -228,6 +273,9 @@ function drawPath(pathData) {
 // `currentPathLayers` so they can be cleared or toggled when switching floors.
 
 drawPath(path);
+
+// Check if a QR code location was scanned and display it
+handleScannedLocation();
 
 function getCSRFToken() {
     const match = document.cookie
