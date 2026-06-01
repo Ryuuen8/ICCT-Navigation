@@ -39,31 +39,62 @@ def pathfind(request):
 
     start = data["start"]
     end = data["end"]
-    G = nx.Graph()
+    G = nx.DiGraph()
 
     locations = Location.objects.all()
 
     for loc in locations:
         G.add_node(
             loc.room_name,
-            pos=(loc.x_coordinate, loc.y_coordinate,loc.floor_location)
+            pos=(loc.x_coordinate, loc.y_coordinate, loc.floor_location)
         )
 
     for conn in Connection.objects.all():
+        from_floor = conn.from_location.floor_location
+        to_floor = conn.to_location.floor_location
+
+        # Add both directions; stair transitions are filtered later
         G.add_edge(
             conn.from_location.room_name,
             conn.to_location.room_name,
-            weight=conn.cost
+            weight=conn.cost,
+            floor_diff=to_floor - from_floor,
+        )
+        G.add_edge(
+            conn.to_location.room_name,
+            conn.from_location.room_name,
+            weight=conn.cost,
+            floor_diff=from_floor - to_floor,
         )
 
+    start_floor = G.nodes[start]["pos"][2]
+    end_floor = G.nodes[end]["pos"][2]
+    if start_floor < end_floor:
+        allowed_direction = "up"
+    elif start_floor > end_floor:
+        allowed_direction = "down"
+    else:
+        allowed_direction = None
+
+    H = nx.DiGraph()
+    H.add_nodes_from(G.nodes(data=True))
+    for u, v, data in G.edges(data=True):
+        floor_diff = data.get("floor_diff", 0)
+        if floor_diff == 0 or allowed_direction is None:
+            H.add_edge(u, v, **data)
+        elif allowed_direction == "up" and floor_diff > 0:
+            H.add_edge(u, v, **data)
+        elif allowed_direction == "down" and floor_diff < 0:
+            H.add_edge(u, v, **data)
+
     def heuristic(a, b):
-        ax, ay, af = G.nodes[a]["pos"]
-        bx, by, bf = G.nodes[b]["pos"]
+        ax, ay, af = H.nodes[a]["pos"]
+        bx, by, bf = H.nodes[b]["pos"]
 
         return math.hypot(ax - bx, ay - by)
 
     path = nx.astar_path(
-        G,
+        H,
         start,
         end,
         heuristic=heuristic,
