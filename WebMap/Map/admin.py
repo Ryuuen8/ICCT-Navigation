@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Location, Connection
+from .models import Location, Connection, Announcement
 
 
 class LocationAdmin(admin.ModelAdmin):
@@ -9,3 +9,4 @@ class LocationAdmin(admin.ModelAdmin):
 
 admin.site.register(Location, LocationAdmin)
 admin.site.register(Connection)
+admin.site.register(Announcement)

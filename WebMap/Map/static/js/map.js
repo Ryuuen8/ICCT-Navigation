@@ -38,9 +38,29 @@ const floors = {
     }
 };
 
-let currentFloor = 1;
+function normalizeFloorId(value) {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    const normalized = String(value).trim().toLowerCase();
+
+    if (normalized === 'g') {
+        return 1;
+    }
+
+    const parsed = parseInt(normalized, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+}
+
+let currentFloor = normalizeFloorId(
+    new URLSearchParams(window.location.search).get('floor')
+) ?? 1;
 let currentPath = null;
 let selected = [];
+let currentMarker = null;
+let currentMarkerTimeout = null;
+const searchMarkerLayer = L.layerGroup().addTo(map);
 
 // Brief: client-side map controller used on the floor map pages.
 // - Shows floor overlays, handles floor switching
@@ -191,7 +211,7 @@ function handleScannedLocation() {
         marker.openPopup();
 
         // Center map on the scanned location
-        map.setView([location.y, location.x], 2);
+        //map.setView([location.y, location.x], 2);
 
         console.log('Scanned location displayed:', location);
     } catch (error) {
@@ -248,12 +268,33 @@ function splitPathIntoFloorSegments(pathCoords) {
     return segments;
 }
 
+function getFirstPathFloor(pathData) {
+    if (Array.isArray(pathData)) {
+        if (pathData.length > 0 && Array.isArray(pathData[0]) && pathData[0].length >= 3) {
+            return normalizeFloorId(pathData[0][2]);
+        }
+
+        return null;
+    }
+
+    if (pathData && Array.isArray(pathData.segments) && pathData.segments.length > 0) {
+        return normalizeFloorId(pathData.segments[0].floor);
+    }
+
+    return null;
+}
+
 // Helper: split returned path coordinates into contiguous floor segments
 
 
 
 function drawPath(pathData) {
     if (!pathData) return;
+
+    const firstPathFloor = getFirstPathFloor(pathData);
+    if (firstPathFloor && firstPathFloor !== currentFloor && floors[firstPathFloor]) {
+        switchFloor(firstPathFloor);
+    }
 
     clearCurrentPath();
 
@@ -290,6 +331,48 @@ function drawPath(pathData) {
             map.addLayer(layer);
         }
     });
+}
+
+function requestPath(start, end) {
+    const csrftoken = getCSRFToken();
+
+    if (!csrftoken) {
+        console.error('CSRF token missing — request blocked');
+        return;
+    }
+
+    fetch('/pathfind/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+            start,
+            end
+        })
+    })
+        .then(async (response) => {
+            if (!response.ok) {
+                const text = await response.text();
+                console.error('SERVER ERROR:', text);
+                return null;
+            }
+
+            return response.json();
+        })
+        .then((data) => {
+            if (!data) return;
+
+            console.log('PATH:', data.path);
+            drawPath(data);
+            alert(`✅ Path found from ${start} to ${end}!`);
+        })
+        .catch((error) => {
+            console.error('FETCH ERROR:', error);
+            alert('❌ Error finding path. Check console for details.');
+        });
 }
 
 // Draws the path layers for the current floor and stores them in
@@ -379,43 +462,7 @@ locations.forEach(function (loc) {
 
             const start = selected[0];
             const end = selected[1];
-
-            fetch("/pathfind/", {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrftoken
-                },
-                body: JSON.stringify({
-                    start: start,
-                    end: end
-                })
-            })
-                .then(async (response) => {
-                    if (!response.ok) {
-                        const text = await response.text();
-                        console.error("SERVER ERROR:", text);
-                        return;
-                    }
-
-                    return response.json();
-                })
-                .then((data) => {
-                    if (!data) return;
-
-                    console.log("PATH:", data.path);
-
-                    // draw new path segments
-                    drawPath(data);
-
-                    // Show success feedback
-                    alert(`✅ Path found from ${start} to ${end}!`);
-                })
-                .catch((error) => {
-                    console.error("FETCH ERROR:", error);
-                    alert("❌ Error finding path. Check console for details.");
-                });
+            requestPath(start, end);
 
             selected = [];
         }
@@ -425,9 +472,13 @@ locations.forEach(function (loc) {
 function switchFloor(floor) {
     if (!floors[floor]) return;
 
+    const previousFloor = currentFloor;
+
     // remove current
-    map.removeLayer(floors[currentFloor].image);
-    map.removeLayer(floors[currentFloor].layer);
+    if (floors[previousFloor]) {
+        map.removeLayer(floors[previousFloor].image);
+        map.removeLayer(floors[previousFloor].layer);
+    }
     currentPathLayers.forEach((layer) => {
         if (map.hasLayer(layer)) {
             map.removeLayer(layer);
@@ -453,3 +504,180 @@ document.querySelectorAll(".floor-item").forEach((btn) => {
         switchFloor(floor);
     });
 });
+
+// search.js
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const suggestionsList = document.getElementById('suggestionsList');
+    let locations = [];
+    let searchTimer;
+    
+    // Load locations from your Django JSON script tag
+    function loadLocations() {
+        try {
+            const locationsElem = document.getElementById('locations-data');
+            if (locationsElem && locationsElem.textContent) {
+                const parsed = JSON.parse(locationsElem.textContent);
+                locations = Array.isArray(parsed) ? parsed : [];
+                console.log(`✅ Loaded ${locations.length} locations for search`);
+            }
+        } catch (error) {
+            console.error('Failed to load locations:', error);
+            locations = [];
+        }
+    }
+    function removeCurrentMarker() {
+        if (currentMarkerTimeout) {
+            clearTimeout(currentMarkerTimeout);
+            currentMarkerTimeout = null;
+        }
+
+        searchMarkerLayer.clearLayers();
+
+        if (currentMarker) {
+            console.log('Previous marker removed');
+        }
+
+        currentMarker = null;
+    }
+    // Search and display suggestions
+    function searchLocations(query) {
+        if (!query || query.length < 2) return [];
+        
+        return locations.filter(loc => 
+            loc.room_name.toLowerCase().includes(query.toLowerCase())
+        ).slice(0, 10);
+    }
+    
+    function displaySuggestions(suggestions) {
+        suggestionsList.innerHTML = '';
+        
+        if (suggestions.length === 0) {
+            suggestionsList.classList.remove('show');
+            return;
+        }
+        
+        suggestions.forEach(loc => {
+            const li = document.createElement('li');
+            li.className = 'suggestion-item';
+            
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'suggestion-name';
+            nameDiv.textContent = loc.room_name;
+            
+            const floorDiv = document.createElement('div');
+            floorDiv.className = 'suggestion-floor';
+            floorDiv.textContent = `Floor ${loc.floor}`;
+            
+            li.appendChild(nameDiv);
+            li.appendChild(floorDiv);
+            
+            li.addEventListener('click', (e) => {
+                e.preventDefault();
+                searchInput.value = loc.room_name;
+                suggestionsList.classList.remove('show');
+                
+                // Trigger map navigation
+                if (typeof window.switchFloor === 'function') {
+                    window.switchFloor(loc.floor);
+                    
+                    // Wait for floor to switch before adding marker
+                    setTimeout(() => {
+                        // Check if coordinates exist
+                        if (loc.y_coordinate && loc.x_coordinate) {
+                            removeCurrentMarker();
+
+                            // Create marker
+                            currentMarker = L.circleMarker([loc.y_coordinate, loc.x_coordinate], {
+                                radius: 15,
+                                fillColor: '#FF6B6B',
+                                color: '#FF0000',
+                                weight: 3,
+                                opacity: 1,
+                                fillOpacity: 0.7,
+                                zIndex: 1000
+                            });
+                            
+                            searchMarkerLayer.addLayer(currentMarker);
+                            
+                            // Add popup to marker
+                            currentMarker.bindPopup(`
+                                <div style="text-align: center; padding: 10px;">
+                                    <strong>📍 ${loc.room_name}</strong><br>
+                                    Floor: ${loc.floor}<br>
+                                    <small>Search result</small>
+                                </div>
+                            `).openPopup();
+                            
+                            // Center map on marker
+                            
+                            const markerToClear = currentMarker;
+                            currentMarkerTimeout = setTimeout(() => {
+                                if (currentMarker === markerToClear) {
+                                    searchMarkerLayer.clearLayers();
+                                    currentMarker = null;
+                                }
+
+                                if (currentMarkerTimeout) {
+                                    currentMarkerTimeout = null;
+                                }
+                            }, 5000);
+                            
+                            console.log(`✅ Navigated to: ${loc.room_name}`);
+                        } else {
+                            console.warn('No coordinates for location:', loc);
+                        }
+                    }, 300);
+                } else {
+                    // Fallback if switchFloor isn't available
+                    if (typeof window.findAndZoomToLocation === 'function') {
+                        window.findAndZoomToLocation(loc.room_name);
+                    }
+                }
+            });
+            
+            suggestionsList.appendChild(li);
+        });
+        
+        suggestionsList.classList.add('show');
+    }
+    
+    // Event listeners
+    searchInput.addEventListener('input', function(e) {
+        clearTimeout(searchTimer);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            suggestionsList.classList.remove('show');
+            return;
+        }
+        
+        searchTimer = setTimeout(() => {
+            const results = searchLocations(query);
+            displaySuggestions(results);
+        }, 250);
+    });
+    
+    // Close suggestions on outside click
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
+            suggestionsList.classList.remove('show');
+        }
+    });
+    
+    loadLocations();
+});
+
+function urlOutside() {
+    const params = new URLSearchParams(window.location.search);
+
+    const start = params.get("start");
+    const end = params.get("end");
+
+
+    if (start && end) {
+        requestPath(start, end);
+    }
+}
+
+urlOutside();

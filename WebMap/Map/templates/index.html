@@ -7,6 +7,14 @@
     <script src="{% static "js/script.js" %}"></script>
     <!-- Leaflet map -->
     <div id="map"></div>
+    <div class="search-container">
+        <input type="text"
+               id="searchInput"
+               placeholder="Search locations..."
+               autocomplete="off">
+        <ul id="suggestionsList" class="suggestions-list">
+        </ul>
+    </div>
     <div class="action-container">
         <button id="navbtn" class="navigate-button">
             <i class="fa-solid fa-location-arrow"></i>

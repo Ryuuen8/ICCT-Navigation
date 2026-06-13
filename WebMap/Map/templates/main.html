@@ -8,7 +8,12 @@
 {% endblock nav_home %}
 {% block content %}
     <link rel="stylesheet" href="{% static "css/main.css" %}">
-    <script src="{% static "js/mainscript.js" %}"></script>
+    <script type="module" src="{% static "js/mainscript.js" %}"></script>
+    <script>
+        function toggleAnnouncement(el) {
+            el.classList.toggle('open');
+        }
+    </script>
     <body>
         <div class="app">
             <!-- HEADER -->
@@ -61,7 +66,7 @@
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <span>Report Hazard</span>
                     </div>
-                    <div class="quick-item">
+                    <div class="quick-item" id="announcement-btn">
                         <i class="fa-solid fa-bell"></i>
                         <span>Announcement</span>
                     </div>
@@ -84,7 +89,7 @@
             <div class="popup-container">
                 <div class="popup-header">
                     <h2>Select a floor</h2>
-                    <button class="close-btn" id="closePopupBtn">&times;</button>
+                    <button class="close-btn" id="closePopupBtn">×</button>
                 </div>
                 <p class="popup-subtitle">Tap a floor to view the map and find your way.</p>
                 <div class="popup-floor-list">
@@ -135,5 +140,77 @@
                 </div>
             </div>
         </div>
-    </body>
+        <!-- ANNOUNCEMENT POPUP -->
+        <div id="announcementPopup"
+             class="announcement-overlay"
+             aria-hidden="true">
+            <div class="announcement-panel"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="announcementTitle">
+                <div class="announcement-header">
+                    <div class="announcement-badge">
+                        <i class="fa-solid fa-bullhorn"></i>
+                        <span>Campus Update</span>
+                    </div>
+                    <button class="announcement-close"
+                            id="closeAnnouncementBtn"
+                            type="button"
+                            aria-label="Close announcement">×</button>
+                </div>
+                <div class="announcement-content">
+                    <p class="announcement-eyebrow">Latest Notice</p>
+                    <h2 id="announcementTitle">Safety and Schedule Reminder</h2>
+                    <p class="announcement-text">
+                        Please keep hallways clear, follow posted directional signs, and check your class schedule before moving between floors.
+                    </p>
+                    <div class="announcement-list">
+                        {% for announcement in items %}
+                            <div class="announcement-item" onclick="toggleAnnouncement(this)">
+                                <span class="announcement-dot"></span>
+                                <div class="announcement-item-content">
+                                    <h3>{{ announcement.title }}</h3>
+                                    <div class="announcement-detail">
+                                        <p>{{ announcement.description }}</p>
+                                        <small>{{ announcement.date_pub|date:"M d, Y" }}</small>
+                                        <div class="announcement-item-actions">
+                                            <button class="ann-btn ann-btn-navigate"
+                                                    data-to-location-name="{{ announcement.to_location.room_name }}"
+                                                    data-to-location-floor="{{ announcement.to_location.floor_location }}"
+                                                    data-to-location-x="{{ announcement.to_location.x_coordinate }}"
+                                                    data-to-location-y="{{ announcement.to_location.y_coordinate }}"
+                                                    data-from-location-name="{{ announcement.from_location.room_name }}"
+                                                    data-from-location-floor="{{ announcement.from_location.floor_location }}"
+                                                    data-from-location-x="{{ announcement.from_location.x_coordinate }}"
+                                                    data-from-location-y="{{ announcement.from_location.y_coordinate }}">
+                                                <i class="fa-solid fa-route"></i> Navigate
+                                            </button>
+                                            <button class="ann-btn ann-btn-location"
+                                                    data-location-name="{{ announcement.to_location.room_name }}"
+                                                    data-location-floor="{{ announcement.to_location.floor_location }}"
+                                                    data-location-x="{{ announcement.to_location.x_coordinate }}"
+                                                    data-location-y="{{ announcement.to_location.y_coordinate }}">
+                                                <i class="fa-solid fa-map-pin"></i> Check Location
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p>No announcements available.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="announcement-footer">
+                    <button class="announcement-action" id="announcementOkBtn" type="button">Got it</button>
+                </div>
+            </div>
+            <!-- end announcement-content -->
+        </div>
+        <!-- end announcement-panel -->
+    </div>
+    <!-- end announcement-overlay -->
+</div>
+<!-- end app -->
+</body>
 {% endblock content %}

@@ -34,3 +34,13 @@ class Connection(models.Model):
     
     def __str__(self):
         return f"{self.from_location.room_name} → {self.to_location.room_name}"    
+
+class Announcement(models.Model):
+    title = models.CharField(max_length=20)
+    description = models.TextField(max_length=200)
+    from_location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="from_destination", null=True, blank=True)
+    to_location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="destination")
+    date_pub = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.title

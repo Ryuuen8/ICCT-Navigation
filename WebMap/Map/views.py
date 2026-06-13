@@ -1,27 +1,39 @@
 from django.shortcuts import render, redirect
 from django.templatetags.static import static
 from django.http import JsonResponse
-from folium.plugins import MousePosition, AntPath, Search
-from .models import Location, Connection
+from django.core.paginator import Paginator
+from .models import Location, Connection, Announcement
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.db.models import Q
 import json
 import networkx as nx
 import math
 # Create your views here.
+
+def announcement(request):
+    items = Announcement.objects.select_related('to_location', 'from_location').all()
+    context = {'items': items}
+    return render(request, 'main.html', context)
+
 def floormap(request):
     locations = Location.objects.exclude(Q(room_name__startswith="Point") | Q(room_name__startswith="Stair"))
+    paginator = Paginator(locations, 30)
+    
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
     context = {'room_name':  locations}
         
-    return render(request,'floor-maps.html', context)
-
-def testmap(request):
-    return render(request, 'main.html')
+    return render(request,'floor-maps.html', {"page_obj": page_obj  })
 
 def emergency(request):
     return render(request, 'emergencty.html')
 
-
+def search(request):
+    query = request.GET.get('term', '')     
+    products = Location.objects.filter(name__icontains=query)[:10]
+    results = [product.name for product in products]
+    return JsonResponse(results, safe=False)
+    
 def locate(request):
     """Handle QR code scans with coordinates.
 
@@ -61,10 +73,17 @@ def pathfind(request):
             "error": "POST request required"
         }, status=400)
 
-    data = json.loads(request.body)
+    try:
+        data = json.loads(request.body or b"{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
 
-    start = data["start"]
-    end = data["end"]
+    start = data.get("start")
+    end = data.get("end")
+
+    if not start or not end:
+        return JsonResponse({"error": "Missing start or end room"}, status=400)
+
     G = nx.DiGraph()
 
     locations = list(Location.objects.all())
@@ -103,6 +122,9 @@ def pathfind(request):
             weight=conn.cost,
             floor_diff=from_floor - to_floor,
         )
+
+    if start not in G or end not in G:
+        return JsonResponse({"error": "Unknown start or end room"}, status=400)
 
     start_floor = G.nodes[start]["pos"][2]
     end_floor = G.nodes[end]["pos"][2]
