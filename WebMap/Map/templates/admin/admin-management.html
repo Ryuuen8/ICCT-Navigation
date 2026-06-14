@@ -1,0 +1,491 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ICCT Admin — Map Editor</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+              rel="stylesheet">
+        <link rel="stylesheet"
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        <link rel="stylesheet"
+              href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+        <link rel="stylesheet"
+              href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+        <style>
+            *,
+            *::before,
+            *::after {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            :root {
+                --navy: #04145d;
+                --navy-mid: #1f3a8a;
+                --navy-light: rgba(4, 20, 93, 0.08);
+                --red: #e10600;
+                --accent: #2563eb;
+                --bg: #f0f2f8;
+                --surface: #ffffff;
+                --surface2: #f7f9ff;
+                --border: rgba(4, 20, 93, 0.10);
+                --text: #1e293b;
+                --muted: #64748b;
+                --success: #0d8a4b;
+                --sans: 'Inter', sans-serif;
+                --mono: 'JetBrains Mono', monospace;
+            }
+
+            body {
+                font-family: var(--sans);
+                background: var(--bg);
+                color: var(--text);
+                min-height: 100vh;
+                display: flex;
+            }
+
+            /* SIDEBAR */
+            .sidebar {
+                width: 240px;
+                min-height: 100vh;
+                background: var(--navy);
+                display: flex;
+                flex-direction: column;
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                z-index: 100;
+            }
+
+            .sidebar-brand {
+                padding: 24px 20px 20px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            }
+
+            .sidebar-brand h1 {
+                color: #fff;
+                font-size: 0.95rem;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                line-height: 1.2;
+            }
+
+            .sidebar-brand span {
+                color: #ffd500;
+                font-size: 0.7rem;
+                font-weight: 600;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+            }
+
+            .sidebar-nav {
+                padding: 16px 12px;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .nav-label {
+                color: rgba(255, 255, 255, 0.35);
+                font-size: 0.65rem;
+                font-weight: 700;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                padding: 12px 8px 6px;
+            }
+
+            .nav-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px 12px;
+                border-radius: 10px;
+                color: rgba(255, 255, 255, 0.65);
+                font-size: 0.85rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: background 0.15s, color 0.15s;
+                border: none;
+                background: none;
+                width: 100%;
+                text-align: left;
+                text-decoration: none;
+            }
+
+            .nav-item:hover {
+                background: rgba(255, 255, 255, 0.08);
+                color: #fff;
+            }
+
+            .nav-item.active {
+                background: rgba(255, 255, 255, 0.12);
+                color: #fff;
+            }
+
+            .nav-item.active i {
+                color: #ffd500;
+            }
+
+            .nav-item i {
+                width: 18px;
+                text-align: center;
+                font-size: 0.9rem;
+            }
+
+            /* MAIN */
+            .main {
+                margin-left: 240px;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
+            }
+
+            .topbar {
+                background: var(--surface);
+                border-bottom: 1px solid var(--border);
+                padding: 0 32px;
+                height: 60px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                position: sticky;
+                top: 0;
+                z-index: 50;
+            }
+
+            .topbar-title {
+                font-size: 1rem;
+                font-weight: 700;
+                color: var(--navy);
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .topbar-title i {
+                color: var(--accent);
+            }
+
+            .topbar-actions {
+                display: flex;
+                gap: 10px;
+                align-items: center;
+            }
+
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                padding: 8px 16px;
+                border-radius: 10px;
+                font-family: var(--sans);
+                font-size: 0.82rem;
+                font-weight: 600;
+                cursor: pointer;
+                border: none;
+                transition: opacity 0.15s, transform 0.1s;
+            }
+
+            .btn:active {
+                transform: translateY(1px);
+                opacity: 0.85;
+            }
+
+            .btn-primary {
+                background: var(--navy);
+                color: #fff;
+            }
+
+            .btn-primary:hover {
+                background: var(--navy-mid);
+            }
+
+            .btn-success {
+                background: var(--success);
+                color: #fff;
+            }
+
+            .btn-ghost {
+                background: var(--navy-light);
+                color: var(--navy);
+            }
+
+            .btn-ghost:hover {
+                background: rgba(4, 20, 93, 0.14);
+            }
+
+            /* CONTENT */
+            .content {
+                padding: 24px 32px;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            /* MAP CARD */
+            .map-card {
+                background: var(--surface);
+                border-radius: 16px;
+                border: 1px solid var(--border);
+                overflow: hidden;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .map-card-header {
+                padding: 14px 20px;
+                border-bottom: 1px solid var(--border);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                background: var(--surface2);
+            }
+
+            .map-card-header h2 {
+                font-size: 0.9rem;
+                font-weight: 700;
+                color: var(--navy);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .floor-pills {
+                display: flex;
+                gap: 6px;
+            }
+
+            .floor-pill {
+                all: unset;
+                padding: 5px 14px;
+                border-radius: 999px;
+                font-size: 0.78rem;
+                font-weight: 700;
+                cursor: pointer;
+                background: var(--navy-light);
+                color: var(--navy);
+                transition: background 0.15s, color 0.15s;
+                font-family: var(--sans);
+            }
+
+            .floor-pill:hover {
+                background: rgba(4, 20, 93, 0.16);
+            }
+
+            .floor-pill.active {
+                background: var(--navy);
+                color: #fff;
+            }
+
+            #map {
+                flex: 1;
+                min-height: calc(100vh - 220px);
+            }
+
+            /* TOAST */
+            .toast {
+                position: fixed;
+                bottom: 24px;
+                right: 24px;
+                background: var(--navy);
+                color: #fff;
+                padding: 12px 20px;
+                border-radius: 12px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+                z-index: 9999;
+                transform: translateY(80px);
+                opacity: 0;
+                transition: all 0.3s ease;
+            }
+
+            .toast.show {
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+            .toast.success i {
+                color: #4ade80;
+            }
+
+            .toast.error i {
+                color: #f87171;
+            }
+
+            /* FLOOR BADGE */
+            .floor-badge {
+                position: absolute;
+                top: 16px;
+                right: 16px;
+                z-index: 1000;
+                background: var(--navy);
+                color: #fff;
+                padding: 6px 14px;
+                border-radius: 10px;
+                font-size: 0.8rem;
+                font-weight: 700;
+                font-family: var(--mono);
+                pointer-events: none;
+                box-shadow: 0 4px 12px rgba(4, 20, 93, 0.3);
+            }
+
+            /* Override Leaflet draw toolbar to match theme */
+            .leaflet-draw-toolbar a {
+                border-radius: 8px !important;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <h1>ICCT CAINTA</h1>
+                <span>Admin Panel</span>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-label">Overview</div>
+                <a class="nav-item" href="/admin-dashboard/">
+                    <i class="fa-solid fa-gauge"></i> Dashboard
+                </a>
+                <div class="nav-label">Data</div>
+                <a class="nav-item" href="/admin-dashboard/">
+                    <i class="fa-solid fa-map-pin"></i> Locations
+                </a>
+                <a class="nav-item" href="/admin-dashboard/">
+                    <i class="fa-solid fa-route"></i> Connections
+                </a>
+                <a class="nav-item" href="/admin-dashboard/">
+                    <i class="fa-solid fa-bullhorn"></i> Announcements
+                </a>
+                <div class="nav-label">Tools</div>
+                <a class="nav-item active" href="#">
+                    <i class="fa-solid fa-draw-polygon"></i> Map Editor
+                </a>
+                <div class="nav-label">Report</div>
+                <a class="nav-item active" href="#">
+                    <i class="fa-solid fa-flag"></i> Hazard Reports
+                </a>
+            </nav>
+        </aside>
+        <!-- MAIN -->
+        <main class="main">
+            <div class="topbar">
+                <span class="topbar-title">
+                    <i class="fa-solid fa-draw-polygon"></i> Indoor Map Editor
+                </span>
+                <div class="topbar-actions">
+                    <button class="btn btn-ghost" onclick="clearDrawings()">
+                        <i class="fa-solid fa-eraser"></i> Clear
+                    </button>
+                    <button class="btn btn-success" onclick="saveRooms()">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Rooms
+                    </button>
+                </div>
+            </div>
+            <div class="content">
+                <div class="map-card">
+                    <div class="map-card-header">
+                        <h2>
+                            <i class="fa-solid fa-layer-group"></i> Floor View
+                        </h2>
+                        <div class="floor-pills">
+                            <button class="floor-pill active" data-floor="1">F1</button>
+                            <button class="floor-pill" data-floor="2">F2</button>
+                            <button class="floor-pill" data-floor="3">F3</button>
+                            <button class="floor-pill" data-floor="4">F4</button>
+                            <button class="floor-pill" data-floor="5">F5</button>
+                        </div>
+                    </div>
+                    <div style="position:relative;
+                                flex:1;
+                                display:flex;
+                                flex-direction:column">
+                        <div class="floor-badge" id="floor-badge">Floor 1</div>
+                        <div id="map"></div>
+                        {{ path|json_script:"path-data" }}
+                        {{ locations|json_script:"locations-data" }}
+                    </div>
+                </div>
+            </div>
+        </main>
+        <!-- TOAST -->
+        <div class="toast" id="toast">
+            <i class="fa-solid fa-circle-check"></i>
+            <span id="toast-msg">Saved</span>
+        </div>
+        <!-- DATA (Django template tags — restore when using in Django) -->
+        <!-- {{ path|json_script:"path-data" }} -->
+        <!-- {{ locations|json_script:"locations-data" }} -->
+        <script id="path-data" type="application/json">
+            []
+        </script>
+        <script id="locations-data" type="application/json">
+            []
+        </script>
+        <!-- SCRIPTS -->
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+        <script src="{% static 'js/script.js' %}"></script>
+        <script src="{% static 'admin/admin-map.js' %}"></script>
+        <script>
+            // CSRF
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            // TOAST
+            let toastTimer;
+
+            function showToast(msg, type = 'success') {
+                const toast = document.getElementById('toast');
+                const icon = toast.querySelector('i');
+                document.getElementById('toast-msg').textContent = msg;
+                toast.className = `toast ${type}`;
+                icon.className = type === 'success' ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark';
+                toast.classList.add('show');
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+
+            // FLOOR PILLS
+            document.querySelectorAll('.floor-pill').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.floor-pill').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const floor = parseInt(btn.dataset.floor);
+                    document.getElementById('floor-badge').textContent = `Floor ${floor}`;
+                    if (typeof switchFloor === 'function') switchFloor(floor);
+                });
+            });
+
+            function clearDrawings() {
+                if (typeof drawnItems !== 'undefined') drawnItems.clearLayers();
+                showToast('Drawings cleared');
+            }
+        </script>
+    </body>
+</html>

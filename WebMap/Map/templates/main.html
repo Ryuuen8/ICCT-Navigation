@@ -211,6 +211,59 @@
     </div>
     <!-- end announcement-overlay -->
 </div>
-<!-- end app -->
+<div id="hazardPopup" class="announcement-overlay" aria-hidden="true">
+    <div class="announcement-panel"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="hazardTitle">
+        <div class="announcement-header">
+            <div class="announcement-badge">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Report Hazard</span>
+            </div>
+            <button class="announcement-close"
+                    id="closeHazardBtn"
+                    type="button"
+                    aria-label="Close">×</button>
+        </div>
+        <div class="announcement-content">
+            <p class="announcement-eyebrow">Safety Alert</p>
+            <h2 id="hazardTitle">Report a Hazard</h2>
+            <p class="announcement-text">Help keep the campus safe. Fill in the details below to report a hazard.</p>
+            <div class="hazard-form">
+                <div class="hazard-form-group"></div>
+                <form action="{% url 'report' %}"
+                      method="post"
+                      enctype="multipart/form-data"
+                      class="hazard-form">
+                    {% csrf_token %}
+                    {% for field in form %}
+                        <div class="hazard-form-group">
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}<small style="color:#e10600;">{{ field.errors|striptags }}</small>{% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="announcement-footer" style="gap: 10px;">
+                    <button class="announcement-action"
+                            style="background: rgba(4,20,93,0.08);
+                                   color: #04145d;
+                                   box-shadow: none"
+                            id="hazardCancelBtn"
+                            type="button">Cancel</button>
+                    <button class="announcement-action" value="Submit "type="Submit">
+                        <i class="fa-solid fa-paper-plane"></i> Submit Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 </body>
+<script>
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
+</script>
 {% endblock content %}

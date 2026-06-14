@@ -1,205 +1,451 @@
-{% extends "admin/base_site.html" %}
 {% load static %}
-{% block extrastyle %}
-    <!-- =========================
-     LEAFLET (USE STABLE 1.9.4)
-========================= -->
-    <link rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- =========================
-     LEAFLET DRAW
-========================= -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
-    <!-- =========================
-     FONT AWESOME (optional UI)
-========================= -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <script src="{% static "js/script.js" %}"></script>
-    <style>
-        #map {
-            width: 100%;
-            height: calc(100vh - 140px);
-            border-radius: 12px;
-            margin-top: 20px;
-            border: 1px solid #e5e7eb;
-        }
-
-        .map-wrapper {
-            padding: 20px;
-        }
-
-        .toolbar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
-        .toolbar button {
-            padding: 8px 14px;
-            border: none;
-            border-radius: 8px;
-            background: #2563eb;
-            color: white;
-            cursor: pointer;
-        }
-
-        .toolbar button:hover {
-            background: #1d4ed8;
-        }
-
-        .floor-container {
-            position: absolute;
-            left: 0;
-            top: 25%;
-            transform: translateY(-25%);
-            z-index: 1000;
-        }
-
-        /* FIXED: keep container as anchor only */
-        .fmenu-container {
-            position: fixed;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-
-            display: flex;
-            flex-direction: column;
-            /* important for dropdown stacking */
-            align-items: flex-start;
-
-            gap: 10px;
-
-            z-index: 1001;
-        }
-
-        /* BUTTON */
-        .floors-box {
-            all: unset;
-
-            width: clamp(46px, 12vw, 78px);
-            height: clamp(46px, 12vw, 78px);
-
-            background: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-
-            border-radius: clamp(14px, 2vw, 22px);
-
-            cursor: pointer;
-            user-select: none;
-
-            font-size: clamp(12px, 4vw, 20px);
-            font-family: 'Courier New', Courier, monospace;
-            width: fit-content;
-            box-shadow: 0 clamp(2px, 0.6vw, 6px) clamp(6px, 1.5vw, 14px) rgba(0, 0, 0, 0.12);
-
-            transition: 0.15s ease;
-        }
-
-        .floor-menu {
-            position: absolute;
-            top: calc(100% + 10px);
-            left: 0;
-
-            background: white;
-            border-radius: 14px;
-            padding: 8px;
-
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-
-            width: fit-content;
-
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-
-            opacity: 0;
-            transform: translateY(-8px) scale(0.98);
-            pointer-events: none;
-
-            transition: 0.15s ease;
-        }
-
-        .floor-menu.show {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            pointer-events: auto;
-        }
-
-        .floor-item {
-            all: unset;
-            padding: 10px 12px;
-            border-radius: 10px;
-
-            cursor: pointer;
-
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-
-            transition: 0.15s ease;
-        }
-
-        .floor-item:hover {
-            background: #f2f2f2;
-        }
-    </style>
-{% endblock %}
-{% block content %}
-    <div class="map-wrapper">
-        <h1>Indoor Navigation Map Editor</h1>
-        <div id="map"></div>
-        {{ path|json_script:"path-data" }}
-        {{ locations|json_script:"locations-data" }}
-        <div class="toolbar">
-            <button onclick="saveRooms()">Save Room</button>
-        </div>
-    </div>
-    <!-- =========================
-     SCRIPTS (IMPORTANT ORDER)
-========================= -->
-    <!-- Leaflet FIRST -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- AntPath (if you use paths elsewhere) -->
-    <script src="https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.min.js"></script>
-    <!-- Leaflet Draw (AFTER Leaflet) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-    <!-- Your map logic -->
-    <script src="{% static 'admin/admin-map.js' %}"></script>
-    <!-- CSRF helper -->
-    <script>
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-    </script>
-    <div class="floor-container">
-        <div class="fmenu-container">
-            <button class="floors-box"
-                    id="floorBtn"
-                    aria-expanded="false"
-                    aria-controls="floorMenu">
-                <span class="floors">Floors</span>
-            </button>
-            <div class="floor-menu" id="floorMenu">
-                <button class="floor-item" data-floor="1">F1</button>
-                <button class="floor-item" data-floor="2">F2</button>
-                <button class="floor-item" data-floor="3">F3</button>
-                <button class="floor-item" data-floor="4">F4</button>
-                <button class="floor-item" data-floor="5">F5</button>
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ICCT Admin — Data Manager</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+              rel="stylesheet">
+        <link rel="stylesheet"
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        <link rel="stylesheet" href="{% static 'css/admin/admin-style.css' %}">
+    </head>
+    <body>
+        <!-- SIDEBAR OVERLAY — must be OUTSIDE <aside> -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <h1>ICCT CAINTA</h1>
+                <span>Admin Panel</span>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-label">Overview</div>
+                <button class="nav-item active" onclick="switchSection('dashboard', this)">
+                    <i class="fa-solid fa-gauge"></i> Dashboard
+                </button>
+                <div class="nav-label">Data</div>
+                <button class="nav-item" onclick="switchSection('locations', this)">
+                    <i class="fa-solid fa-map-pin"></i> Locations
+                    <span class="nav-badge" id="loc-count">0</span>
+                </button>
+                <button class="nav-item" onclick="switchSection('connections', this)">
+                    <i class="fa-solid fa-route"></i> Connections
+                    <span class="nav-badge" id="conn-count">0</span>
+                </button>
+                <button class="nav-item" onclick="switchSection('announcements', this)">
+                    <i class="fa-solid fa-bullhorn"></i> Announcements
+                    <span class="nav-badge" id="ann-count">0</span>
+                </button>
+                <div class="nav-label">Tools</div>
+                <a class="nav-item" href="{% url 'map-editor' %}">
+                    <i class="fa-solid fa-draw-polygon"></i> Map Editor
+                </a>
+                <div class="nav-label">Report</div>
+                <button class="nav-item" onclick="switchSection('hazards', this)">
+                    <i class="fa-solid fa-flag"></i> Hazard Reports
+                    <span class="nav-badge" id="hazard-count">0</span>
+                </button>
+            </nav>
+        </aside>
+        <!-- MAIN -->
+        <main class="main">
+            <div class="topbar">
+                <button class="menu-toggle" id="menu-toggle">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <span class="topbar-title" id="topbar-title">Dashboard</span>
+                <div class="topbar-actions">
+                    <button class="btn btn-ghost btn-sm" onclick="loadAll()">
+                        <i class="fa-solid fa-rotate"></i> <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+            <div class="content">
+                <!-- DASHBOARD -->
+                <div class="section active" id="section-dashboard">
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-icon blue">
+                                <i class="fa-solid fa-map-pin"></i>
+                            </div>
+                            <div class="stat-info">
+                                <p>Total Locations</p>
+                                <h3 id="stat-loc">—</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon navy">
+                                <i class="fa-solid fa-route"></i>
+                            </div>
+                            <div class="stat-info">
+                                <p>Connections</p>
+                                <h3 id="stat-conn">—</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon red">
+                                <i class="fa-solid fa-bullhorn"></i>
+                            </div>
+                            <div class="stat-info">
+                                <p>Announcements</p>
+                                <h3 id="stat-ann">—</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <div class="table-toolbar" style="padding:16px 20px;">
+                            <span style="font-size:0.85rem;font-weight:600;color:var(--navy)">
+                                <i class="fa-solid fa-clock-rotate-left" style="margin-right:6px;"></i>Recent Announcements
+                            </span>
+                        </div>
+                        <div class="table-scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>From</th>
+                                        <th>To</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dash-ann-table">
+                                    <tr>
+                                        <td colspan="4">
+                                            <div class="empty-state">
+                                                <i class="fa-solid fa-bullhorn"></i>
+                                                <p>No announcements yet</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- LOCATIONS -->
+                <div class="section" id="section-locations">
+                    <div class="section-header">
+                        <h2>Locations</h2>
+                        <button class="btn btn-primary" onclick="openModal('location')">
+                            <i class="fa-solid fa-plus"></i> Add Location
+                        </button>
+                    </div>
+                    <div class="table-wrap">
+                        <div class="table-toolbar">
+                            <input class="search-input"
+                                   placeholder="Search room name..."
+                                   oninput="filterTable('loc-table', this.value)">
+                        </div>
+                        <div class="table-scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Room Name</th>
+                                        <th>Floor</th>
+                                        <th>X</th>
+                                        <th>Y</th>
+                                        <th>Stair Type</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="loc-table">
+                                    <tr>
+                                        <td colspan="7">
+                                            <div class="empty-state">
+                                                <i class="fa-solid fa-map-pin"></i>
+                                                <p>Loading...</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- CONNECTIONS -->
+                <div class="section" id="section-connections">
+                    <div class="section-header">
+                        <h2>Connections</h2>
+                        <button class="btn btn-primary" onclick="openModal('connection')">
+                            <i class="fa-solid fa-plus"></i> Add Connection
+                        </button>
+                    </div>
+                    <div class="table-wrap">
+                        <div class="table-toolbar">
+                            <input class="search-input"
+                                   placeholder="Search connection..."
+                                   oninput="filterTable('conn-table', this.value)">
+                        </div>
+                        <div class="table-scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>From</th>
+                                        <th>To</th>
+                                        <th>Cost</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="conn-table">
+                                    <tr>
+                                        <td colspan="5">
+                                            <div class="empty-state">
+                                                <i class="fa-solid fa-route"></i>
+                                                <p>Loading...</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- ANNOUNCEMENTS -->
+                <div class="section" id="section-announcements">
+                    <div class="section-header">
+                        <h2>Announcements</h2>
+                        <button class="btn btn-primary" onclick="openModal('announcement')">
+                            <i class="fa-solid fa-plus"></i> Add Announcement
+                        </button>
+                    </div>
+                    <div class="table-wrap">
+                        <div class="table-toolbar">
+                            <input class="search-input"
+                                   placeholder="Search announcement..."
+                                   oninput="filterTable('ann-table', this.value)">
+                        </div>
+                        <div class="table-scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Title</th>
+                                        <th>Description</th>
+                                        <th>From</th>
+                                        <th>To</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ann-table">
+                                    <tr>
+                                        <td colspan="7">
+                                            <div class="empty-state">
+                                                <i class="fa-solid fa-bullhorn"></i>
+                                                <p>Loading...</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <!-- HAZARD REPORTS -->
+                <div class="section" id="section-hazards">
+                    <div class="section-header">
+                        <h2>Hazard Reports</h2>
+                        <button class="btn btn-primary" onclick="loadHazards()">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="table-wrap">
+                        <div class="table-toolbar">
+                            <input class="search-input"
+                                   placeholder="Search hazard reports..."
+                                   oninput="filterTable('hazard-table', this.value)">
+                        </div>
+                        <div class="table-scroll">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Title</th>
+                                        <th>Image</th>
+                                        <th>Description</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hazard-table">
+                                    <tr>
+                                        <td colspan="7">
+                                            <div class="empty-state">
+                                                <i class="fa-solid fa-flag"></i>
+                                                <p>No hazard reports yet</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <!-- LOCATION MODAL -->
+        <div class="modal-overlay" id="modal-location">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="loc-modal-title">Add Location</h3>
+                    <button class="modal-close" onclick="closeModal('location')">×</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="loc-id">
+                    <div class="form-group">
+                        <label>Room Name</label>
+                        <input class="form-control" id="loc-room_name" placeholder="e.g. R401">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Floor</label>
+                            <input class="form-control"
+                                   id="loc-floor_location"
+                                   type="number"
+                                   min="1"
+                                   max="5"
+                                   placeholder="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Stair Type</label>
+                            <select class="form-control" id="loc-stair_type">
+                                <option value="">None</option>
+                                <option value="entrance">Entrance</option>
+                                <option value="exit">Exit</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>X Coordinate</label>
+                            <input class="form-control"
+                                   id="loc-x_coordinate"
+                                   type="number"
+                                   step="0.01"
+                                   placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Y Coordinate</label>
+                            <input class="form-control"
+                                   id="loc-y_coordinate"
+                                   type="number"
+                                   step="0.01"
+                                   placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-ghost" onclick="closeModal('location')">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveLocation()">
+                        <i class="fa-solid fa-floppy-disk"></i> Save
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-{% endblock %}
+        <!-- CONNECTION MODAL -->
+        <div class="modal-overlay" id="modal-connection">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="conn-modal-title">Add Connection</h3>
+                    <button class="modal-close" onclick="closeModal('connection')">×</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="conn-id">
+                    <div class="form-group">
+                        <label>From Location</label>
+                        <select class="form-control" id="conn-from_location"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>To Location</label>
+                        <select class="form-control" id="conn-to_location"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cost</label>
+                        <input class="form-control"
+                               id="conn-cost"
+                               type="number"
+                               step="0.01"
+                               placeholder="1.00">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-ghost" onclick="closeModal('connection')">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveConnection()">
+                        <i class="fa-solid fa-floppy-disk"></i> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- ANNOUNCEMENT MODAL -->
+        <div class="modal-overlay" id="modal-announcement">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="ann-modal-title">Add Announcement</h3>
+                    <button class="modal-close" onclick="closeModal('announcement')">×</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="ann-id">
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input class="form-control"
+                               id="ann-title"
+                               placeholder="e.g. Room Change Notice"
+                               maxlength="20">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea class="form-control"
+                                  id="ann-description"
+                                  rows="3"
+                                  placeholder="Announcement details..."
+                                  maxlength="200"
+                                  style="resize:vertical"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>From Location (optional)</label>
+                        <select class="form-control" id="ann-from_location">
+                            <option value="">— None —</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>To Location</label>
+                        <select class="form-control" id="ann-to_location"></select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-ghost" onclick="closeModal('announcement')">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveAnnouncement()">
+                        <i class="fa-solid fa-floppy-disk"></i> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- CONFIRM DELETE MODAL -->
+        <div class="modal-overlay" id="modal-confirm">
+            <div class="modal confirm-modal">
+                <div class="modal-body">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <h3 style="font-size:1rem;font-weight:700;color:var(--navy)">Delete Record</h3>
+                    <p id="confirm-msg">Are you sure? This cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-ghost" onclick="closeModal('confirm')">Cancel</button>
+                    <button class="btn btn-danger" id="confirm-ok-btn">
+                        <i class="fa-solid fa-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- TOAST -->
+        <div class="toast" id="toast">
+            <i class="fa-solid fa-circle-check"></i>
+            <span id="toast-msg">Saved successfully</span>
+        </div>
+        <!-- SCRIPT AT BOTTOM — critical for DOM to exist before JS runs -->
+        <script src="{% static 'js/admin/admin-script.js' %}"></script>
+    </body>
+</html>

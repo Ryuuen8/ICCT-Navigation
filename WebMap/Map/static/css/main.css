@@ -575,6 +575,78 @@ body::-webkit-scrollbar {
     transform: translateY(1px);
 }
 
+.hazard-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.hazard-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.hazard-form-group label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #04145d;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.hazard-form input,
+.hazard-form select,
+.hazard-form textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid rgba(4, 20, 93, 0.12);
+    border-radius: 12px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.85rem;
+    color: #1e293b;
+    background: #f7f9ff;
+    outline: none;
+    transition: all 0.15s ease;
+}
+
+.hazard-form input:focus,
+.hazard-form select:focus,
+.hazard-form textarea:focus {
+    border-color: #2563eb;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.hazard-form textarea {
+    min-height: 110px;
+    resize: vertical;
+}
+
+.hazard-form input[type="file"] {
+    padding: 12px;
+    background: #ffffff;
+    cursor: pointer;
+}
+
+.hazard-form input[type="file"]::file-selector-button {
+    border: none;
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-right: 12px;
+    background: linear-gradient(135deg, #04145d 0%, #1f5aa6 100%);
+    color: white;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.hazard-form small {
+    margin-top: 4px;
+    font-size: 0.75rem;
+}
+
 /* Scrollbar */
 #test .popup-container::-webkit-scrollbar {
     width: 4px;

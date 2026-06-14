@@ -1,6 +1,5 @@
 from django.db import models
-from django.urls import reverse
-from django.utils.html import format_html
+from django.forms import ModelForm
 # Create your models here.
 class Location(models.Model):
     STAIR_TYPE_ENTRANCE = "entrance"
@@ -41,6 +40,16 @@ class Announcement(models.Model):
     from_location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="from_destination", null=True, blank=True)
     to_location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="destination")
     date_pub = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.title
+    
+class HazardReport(models.Model):
+    title = models.CharField(max_length=100)
+    description = models.TextField(max_length=500)
+    image  = models.ImageField(upload_to='user-reports/%Y/%m/%d/', null=True, blank=True)
+    uploade_date = models.DateTimeField(auto_now_add=True)
+    
     
     def __str__(self):
         return self.title

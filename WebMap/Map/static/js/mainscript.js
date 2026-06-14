@@ -17,6 +17,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const announcementOkBtn = document.getElementById('announcementOkBtn');
     const annNavigate = document.querySelectorAll('.ann-btn-navigate');
     const annCheck = document.querySelectorAll('.ann-btn-location');
+    const hazardBtn = document.querySelector('.quick-item:has(.fa-triangle-exclamation)');
+    const hazardPopup = document.getElementById('hazardPopup');
+    const closeHazardBtn = document.getElementById('closeHazardBtn');
+    const hazardCancelBtn = document.getElementById('hazardCancelBtn');
+    const hazardSubmitBtn = document.getElementById('hazardSubmitBtn');
     let activeSearchField = 'from';
     let fromSelected = '';
     let toSelected = '';
@@ -35,6 +40,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return normalized;
     }
+
+    if (hazardBtn && hazardPopup) {
+        hazardBtn.addEventListener('click', () => {
+            hazardPopup.classList.add('show');
+            hazardPopup.setAttribute('aria-hidden', 'false');
+        });
+    }
+
+    [closeHazardBtn, hazardCancelBtn].forEach(btn => {
+        btn?.addEventListener('click', () => {
+            hazardPopup.classList.remove('show');
+            hazardPopup.setAttribute('aria-hidden', 'true');
+        });
+    });
+
+    hazardPopup?.addEventListener('click', (e) => {
+        if (e.target === hazardPopup) {
+            hazardPopup.classList.remove('show');
+            hazardPopup.setAttribute('aria-hidden', 'true');
+        }
+    });
 
     // Open popup when floor button is clicked
     if (floorBtn) {
@@ -104,11 +130,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showError(message, title = "Navigation Error") {
 
-    // Remove existing popup
+        // Remove existing popup
         const existing = document.getElementById("custom-error-popup");
         if (existing) existing.remove();
 
-    // Overlay
+        // Overlay
         const overlay = document.createElement("div");
         overlay.id = "custom-error-popup";
 
@@ -122,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
             zIndex: "99999"
         });
 
-    // Popup box
+        // Popup box
         const popup = document.createElement("div");
 
         Object.assign(popup.style, {
@@ -172,13 +198,13 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay.appendChild(popup);
         document.body.appendChild(overlay);
 
-    // Close button
+        // Close button
         document.getElementById("popup-ok-btn")
             .addEventListener("click", () => {
                 overlay.remove();
             });
 
-    // Close when clicking outside
+        // Close when clicking outside
         overlay.addEventListener("click", (e) => {
             if (e.target === overlay) {
                 overlay.remove();
@@ -209,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         listLocation.forEach(item => {
-            item.addEventListener('click', function() {
+            item.addEventListener('click', function () {
                 const clickedName = this.dataset.name?.trim() || '';
                 const clickedLabel = clickedName || (this.querySelector('.fm-dest-name span')?.textContent.trim() || this.textContent.trim());
 
@@ -256,5 +282,5 @@ document.addEventListener('DOMContentLoaded', () => {
             const locationY = btn.dataset.locationY;
             window.location.href = `/map/?x=${encodeURIComponent(locationX)}&y=${encodeURIComponent(locationY)}&floor=${encodeURIComponent(locationFloor)}&name=${encodeURIComponent(locationName)}`;
         });
-});
+    });
 });

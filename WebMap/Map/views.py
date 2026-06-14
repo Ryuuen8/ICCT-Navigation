@@ -1,18 +1,46 @@
 from django.shortcuts import render, redirect
-from django.templatetags.static import static
+from django.contrib import messages
 from django.http import JsonResponse
 from django.core.paginator import Paginator
-from .models import Location, Connection, Announcement
+from .models import Location, Connection, Announcement, HazardReport
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.db.models import Q
+from .forms import ReportForm
 import json
 import networkx as nx
 import math
+from rest_framework import viewsets
+from .serializers import LocationSerializer, ConnectionSerializer, AnnouncementSerializer, HazardReportSerializer
 # Create your views here.
 
+class LocationViewSet(viewsets.ModelViewSet):
+    queryset = Location.objects.all()
+    serializer_class = LocationSerializer
+
+class ConnectionViewSet(viewsets.ModelViewSet):
+    queryset = Connection.objects.select_related('from_location', 'to_location').all()
+    serializer_class = ConnectionSerializer
+
+class AnnouncementViewSet(viewsets.ModelViewSet):
+    queryset = Announcement.objects.select_related('from_location', 'to_location').all()
+    serializer_class = AnnouncementSerializer
+    
+class HazardReportViewSet(viewsets.ModelViewSet):
+    queryset = HazardReport.objects.all()
+    serializer_class = HazardReportSerializer
+
 def announcement(request):
+    if request.method == "POST":
+        form = ReportForm(request.POST, request.FILES)
+        
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Form Submitted")
+            return redirect('main')
+    else:
+        form = ReportForm()
     items = Announcement.objects.select_related('to_location', 'from_location').all()
-    context = {'items': items}
+    context = {'items': items, 'form':form}
     return render(request, 'main.html', context)
 
 def floormap(request):
@@ -266,6 +294,27 @@ def admin_dashboard(request):
             weight=conn.cost)
     return render(request, 'admin/admin-dashboard.html',{"locations": data})
 
+def admin_management(request):
+    locations  = Location.objects.all()
+    data = [
+        {
+            "floor": loc.floor_location,
+            "room_name": loc.room_name,
+            "x_coordinate": loc.x_coordinate,
+            "y_coordinate": loc.y_coordinate,
+        }
+        for loc in locations
+    ]
+    G = nx.Graph()
+    for loc in locations:
+        G.add_node(loc.room_name, pos=(loc.floor_location,loc.x_coordinate, loc.y_coordinate))
+    for conn in Connection.objects.all():
+        G.add_edge(            
+            conn.from_location.room_name,
+            conn.to_location.room_name,
+            weight=conn.cost)
+    return render(request, 'admin/admin-management.html',{"locations": data})
+
 
 @csrf_exempt
 def save_room(request):
@@ -288,4 +337,4 @@ def save_room(request):
 
         return JsonResponse({"status": "saved"})
 
-#Testing for pathfinding using folium
+#Testing for pathfinding using foliumfrom django.shortcuts import render, redirect
