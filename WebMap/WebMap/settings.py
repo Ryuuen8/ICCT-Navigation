@@ -49,7 +49,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'Map.apps.MapConfig',
-    'pwa',
 ]
 
 MIDDLEWARE = [
@@ -122,31 +121,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
-import os
-
-PWA_APP_NAME = "My Django App"
-PWA_APP_DESCRIPTION = "A Django Progressive Web App"
-PWA_APP_THEME_COLOR = "#000000"
-PWA_APP_BACKGROUND_COLOR = "#ffffff"
-PWA_APP_DISPLAY = "standalone"
-PWA_APP_SCOPE = "/"
-PWA_APP_ORIENTATION = "any"
-PWA_APP_START_URL = "/"
-PWA_APP_STATUS_BAR_COLOR = "default"
-
-PWA_APP_ICONS = [
-    {
-        "src": "/static/icons/Gigachad-PNG-Pic.png",
-        "sizes": "192x192"
-    },
-    {
-        "src": "/static/icons/Gigachad-PNG-Pic.png",
-        "sizes": "512x512"
-    }
-]
-
-PWA_SERVICE_WORKER_PATH = os.path.join(BASE_DIR, "static/js/serviceworker.js")
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
