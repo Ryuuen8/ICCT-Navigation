@@ -1,0 +1,235 @@
+/* HEADER */
+.emergency-header {
+    background: #d60000;
+    color: white;
+    padding: 16px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 800;
+    position: sticky;
+    top: 0;
+    width: 100%;
+    z-index: 10;
+}
+
+.emergency-header h1 {
+    font-size: 1rem;
+    letter-spacing: 1px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.emergency-header i {
+    font-size: 1.2rem;
+}
+
+/* GRID */
+.emergency-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 16px;
+}
+
+/* CARD - TOUCH FRIENDLY */
+.em-card {
+    background: white;
+    border-radius: 14px;
+    padding: 12px 10px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: transform 0.05s linear;
+    min-height: 70px;
+}
+
+.em-card:active {
+    transform: scale(0.97);
+}
+
+.em-card i {
+    font-size: 1.5rem;
+    min-width: 32px;
+    text-align: center;
+}
+
+/* COLORS */
+.fire i {
+    color: #ff3b30;
+}
+
+.medical i {
+    color: #0a84ff;
+}
+
+.security i {
+    color: #1e3a8a;
+}
+
+.hazard i {
+    color: #ff9f0a;
+}
+
+.em-card h3 {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.em-card p {
+    margin: 2px 0 0;
+    font-size: 0.65rem;
+    color: #666;
+    line-height: 1.3;
+}
+
+/* INFO SECTION */
+.emergency-info {
+    padding: 0 16px;
+    margin-top: 4px;
+}
+
+.emergency-info h4 {
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #b91c1c;
+}
+
+.emergency-info ul {
+    list-style: none;
+    padding: 0;
+}
+
+.emergency-info li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.78rem;
+    margin-bottom: 10px;
+    color: #444;
+    line-height: 1.4;
+}
+
+.emergency-info i {
+    color: #d60000;
+    width: 20px;
+    font-size: 0.8rem;
+}
+
+/* CALL BUTTON  */
+.emergency-call {
+    margin: 16px 16px 24px 16px;
+    background: #d60000;
+    color: white;
+    padding: 14px 16px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    transition: opacity 0.2s;
+}
+
+.emergency-call:active {
+    opacity: 0.85;
+}
+
+.emergency-call i {
+    font-size: 1.4rem;
+}
+
+.emergency-call span {
+    font-size: 0.8rem;
+    opacity: 0.95;
+    font-weight: 500;
+}
+
+/* SMALL SCREEN REFINEMENTS (under 480px) */
+@media (max-width: 480px) {
+    .emergency-header {
+        padding: 14px 16px;
+    }
+
+    .emergency-header h1 {
+        font-size: 0.9rem;
+    }
+
+    .emergency-grid {
+        gap: 10px;
+        padding: 14px;
+    }
+
+    .em-card {
+        padding: 10px 8px;
+        gap: 8px;
+    }
+
+    .em-card i {
+        font-size: 1.3rem;
+        min-width: 28px;
+    }
+
+    .em-card h3 {
+        font-size: 0.8rem;
+    }
+
+    .em-card p {
+        font-size: 0.6rem;
+    }
+
+    .emergency-info {
+        padding: 0 14px;
+    }
+
+    .emergency-info li {
+        font-size: 0.74rem;
+        gap: 8px;
+    }
+
+    .emergency-call {
+        margin: 12px 14px 20px 14px;
+        padding: 12px 14px;
+    }
+
+    .emergency-call i {
+        font-size: 1.3rem;
+    }
+
+    .emergency-call span {
+        font-size: 0.75rem;
+    }
+}
+
+/* EXTRA SMALL (under 380px) - prevent text overflow */
+@media (max-width: 380px) {
+    .em-card {
+        flex-direction: column;
+        text-align: center;
+        padding: 12px 6px;
+    }
+
+    .em-card i {
+        font-size: 1.5rem;
+        min-width: auto;
+    }
+
+    .em-card h3 {
+        font-size: 0.75rem;
+    }
+
+    .em-card p {
+        font-size: 0.6rem;
+    }
+}
+
+/* Prevent horizontal scroll */
+body {
+    overflow-x: hidden;
+}

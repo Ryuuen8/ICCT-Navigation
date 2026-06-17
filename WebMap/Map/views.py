@@ -12,8 +12,6 @@ import math
 from rest_framework import viewsets
 from .serializers import LocationSerializer, ConnectionSerializer, AnnouncementSerializer, HazardReportSerializer
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.views.decorators.http import require_http_methods
-from .utils.signer import validate_secure_token
 # Create your views here.
 
 class LocationViewSet(viewsets.ModelViewSet):
