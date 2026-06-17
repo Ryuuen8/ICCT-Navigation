@@ -12,23 +12,32 @@ import math
 from rest_framework import viewsets
 from .serializers import LocationSerializer, ConnectionSerializer, AnnouncementSerializer, HazardReportSerializer
 from django.contrib.auth.decorators import login_required, user_passes_test
+from rest_framework.permissions import IsAdminUser
 # Create your views here.
+
+
+def staff_check(user):
+    return user.is_staff
 
 class LocationViewSet(viewsets.ModelViewSet):
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
-
+    permission_classes = [IsAdminUser]
+    
 class ConnectionViewSet(viewsets.ModelViewSet):
     queryset = Connection.objects.select_related('from_location', 'to_location').all()
     serializer_class = ConnectionSerializer
-
+    permission_classes = [IsAdminUser]
+    
 class AnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.select_related('from_location', 'to_location').all()
     serializer_class = AnnouncementSerializer
-    
+    permission_classes = [IsAdminUser]
+
 class HazardReportViewSet(viewsets.ModelViewSet):
     queryset = HazardReport.objects.all()
     serializer_class = HazardReportSerializer
+    permission_classes = [IsAdminUser]
 
 def announcement(request):
     if request.method == "POST":
@@ -274,9 +283,6 @@ def index(request):
     return render(request, "index.html", {
         "locations": data,
     })
-
-def staff_check(user):
-    return user.is_staff
     
 @login_required(login_url="admin:login")
 @user_passes_test(staff_check)

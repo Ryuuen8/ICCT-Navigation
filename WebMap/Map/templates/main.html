@@ -75,351 +75,348 @@
             </section>
             <!-- LOCATION CARD -->
             <section class="location-card">
-                <div class="dot"></div>
+                <div class="dot" id="location-dot" style="background:#ccc;"></div>
                 <div>
                     <small>CURRENT LOCATION</small>
-                    <h3>Fourth Floor</h3>
-                    <p>Near Lecture Room (R46)</p>
+                    <h3 id="current-location-name">No Location Scanned</h3>
+                    <p id="current-location-detail">Scan a QR code to get your location</p>
                 </div>
             </section>
-            <section id="contact-section">
-            </section>
-        </div>
-        <!-- POPUP - Floor Selection -->
-        <div id="test">
-            <div class="popup-container">
-                <div class="popup-header">
-                    <h2>Select a floor</h2>
-                    <button class="close-btn" id="closePopupBtn">×</button>
-                </div>
-                <p class="popup-subtitle">Tap a floor to view the map and find your way.</p>
-                <div class="popup-floor-list">
-                    <!-- 5th Floor -->
-                    <div class="popup-floor-card" data-floor="5">
-                        <div class="floor-circle">5</div>
-                        <div class="floor-details">
-                            <h3>FIFTH FLOOR</h3>
-                            <p>Lecture Rooms</p>
+            <!-- POPUP - Floor Selection -->
+            <div id="test">
+                <div class="popup-container">
+                    <div class="popup-header">
+                        <h2>Select a floor</h2>
+                        <button class="close-btn" id="closePopupBtn">×</button>
+                    </div>
+                    <p class="popup-subtitle">Tap a floor to view the map and find your way.</p>
+                    <div class="popup-floor-list">
+                        <!-- 5th Floor -->
+                        <div class="popup-floor-card" data-floor="5">
+                            <div class="floor-circle">5</div>
+                            <div class="floor-details">
+                                <h3>FIFTH FLOOR</h3>
+                                <p>Lecture Rooms</p>
+                            </div>
+                        </div>
+                        <!-- 4th Floor -->
+                        <div class="popup-floor-card" data-floor="4">
+                            <div class="floor-circle">4</div>
+                            <div class="floor-details">
+                                <h3>FOURTH FLOOR</h3>
+                                <p>You can leave</p>
+                            </div>
+                        </div>
+                        <!-- 3rd Floor -->
+                        <div class="popup-floor-card" data-floor="3">
+                            <div class="floor-circle">3</div>
+                            <div class="floor-details">
+                                <h3>THIRD FLOOR</h3>
+                                <p>Lecture Rooms</p>
+                            </div>
+                        </div>
+                        <!-- 2nd Floor -->
+                        <div class="popup-floor-card" data-floor="2">
+                            <div class="floor-circle">2</div>
+                            <div class="floor-details">
+                                <h3>SECOND FLOOR</h3>
+                                <p>Labs & Rooms</p>
+                            </div>
+                        </div>
+                        <!-- Ground Floor -->
+                        <div class="popup-floor-card" data-floor="g">
+                            <div class="floor-circle">G</div>
+                            <div class="floor-details">
+                                <h3>GROUND FLOOR</h3>
+                                <p>Library & Labs</p>
+                            </div>
                         </div>
                     </div>
-                    <!-- 4th Floor -->
-                    <div class="popup-floor-card" data-floor="4">
-                        <div class="floor-circle">4</div>
-                        <div class="floor-details">
-                            <h3>FOURTH FLOOR</h3>
-                            <p>You can leave</p>
-                        </div>
+                    <div class="popup-tip">
+                        <i class="fas fa-lightbulb"></i>
+                        <p>Tip: Use the map to navigate or select a destination from the list.</p>
                     </div>
-                    <!-- 3rd Floor -->
-                    <div class="popup-floor-card" data-floor="3">
-                        <div class="floor-circle">3</div>
-                        <div class="floor-details">
-                            <h3>THIRD FLOOR</h3>
-                            <p>Lecture Rooms</p>
-                        </div>
-                    </div>
-                    <!-- 2nd Floor -->
-                    <div class="popup-floor-card" data-floor="2">
-                        <div class="floor-circle">2</div>
-                        <div class="floor-details">
-                            <h3>SECOND FLOOR</h3>
-                            <p>Labs & Rooms</p>
-                        </div>
-                    </div>
-                    <!-- Ground Floor -->
-                    <div class="popup-floor-card" data-floor="g">
-                        <div class="floor-circle">G</div>
-                        <div class="floor-details">
-                            <h3>GROUND FLOOR</h3>
-                            <p>Library & Labs</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="popup-tip">
-                    <i class="fas fa-lightbulb"></i>
-                    <p>Tip: Use the map to navigate or select a destination from the list.</p>
                 </div>
             </div>
-        </div>
-        <!-- ANNOUNCEMENT POPUP -->
-        <div id="announcementPopup"
-             class="announcement-overlay"
-             aria-hidden="true">
-            <div class="announcement-panel"
-                 role="dialog"
-                 aria-modal="true"
-                 aria-labelledby="announcementTitle">
-                <div class="announcement-header">
-                    <div class="announcement-badge">
-                        <i class="fa-solid fa-bullhorn"></i>
-                        <span>Campus Update</span>
+            <!-- ANNOUNCEMENT POPUP -->
+            <div id="announcementPopup"
+                 class="announcement-overlay"
+                 aria-hidden="true">
+                <div class="announcement-panel"
+                     role="dialog"
+                     aria-modal="true"
+                     aria-labelledby="announcementTitle">
+                    <div class="announcement-header">
+                        <div class="announcement-badge">
+                            <i class="fa-solid fa-bullhorn"></i>
+                            <span>Campus Update</span>
+                        </div>
+                        <button class="announcement-close"
+                                id="closeAnnouncementBtn"
+                                type="button"
+                                aria-label="Close announcement">×</button>
                     </div>
-                    <button class="announcement-close"
-                            id="closeAnnouncementBtn"
-                            type="button"
-                            aria-label="Close announcement">×</button>
-                </div>
-                <div class="announcement-content">
-                    <p class="announcement-eyebrow">Latest Notice</p>
-                    <h2 id="announcementTitle">Safety and Schedule Reminder</h2>
-                    <p class="announcement-text">
-                        Please keep hallways clear, follow posted directional signs, and check your class schedule before moving between floors.
-                    </p>
-                    <div class="announcement-list">
-                        {% for announcement in items %}
-                            <div class="announcement-item" onclick="toggleAnnouncement(this)">
-                                <span class="announcement-dot"></span>
-                                <div class="announcement-item-content">
-                                    <h3>{{ announcement.title }}</h3>
-                                    <div class="announcement-detail">
-                                        <p>{{ announcement.description }}</p>
-                                        <small>{{ announcement.date_pub|date:"M d, Y" }}</small>
-                                        <div class="announcement-item-actions">
-                                            <button class="ann-btn ann-btn-navigate"
-                                                    data-to-location-name="{{ announcement.to_location.room_name }}"
-                                                    data-to-location-floor="{{ announcement.to_location.floor_location }}"
-                                                    data-to-location-x="{{ announcement.to_location.x_coordinate }}"
-                                                    data-to-location-y="{{ announcement.to_location.y_coordinate }}"
-                                                    data-from-location-name="{{ announcement.from_location.room_name }}"
-                                                    data-from-location-floor="{{ announcement.from_location.floor_location }}"
-                                                    data-from-location-x="{{ announcement.from_location.x_coordinate }}"
-                                                    data-from-location-y="{{ announcement.from_location.y_coordinate }}">
-                                                <i class="fa-solid fa-route"></i> Navigate
-                                            </button>
-                                            <button class="ann-btn ann-btn-location"
-                                                    data-location-name="{{ announcement.to_location.room_name }}"
-                                                    data-location-floor="{{ announcement.to_location.floor_location }}"
-                                                    data-location-x="{{ announcement.to_location.x_coordinate }}"
-                                                    data-location-y="{{ announcement.to_location.y_coordinate }}">
-                                                <i class="fa-solid fa-map-pin"></i> Check Location
-                                            </button>
+                    <div class="announcement-content">
+                        <p class="announcement-eyebrow">Latest Notice</p>
+                        <h2 id="announcementTitle">Safety and Schedule Reminder</h2>
+                        <p class="announcement-text">
+                            Please keep hallways clear, follow posted directional signs, and check your class schedule before moving between floors.
+                        </p>
+                        <div class="announcement-list">
+                            {% for announcement in items %}
+                                <div class="announcement-item" onclick="toggleAnnouncement(this)">
+                                    <span class="announcement-dot"></span>
+                                    <div class="announcement-item-content">
+                                        <h3>{{ announcement.title }}</h3>
+                                        <div class="announcement-detail">
+                                            <p>{{ announcement.description }}</p>
+                                            <small>{{ announcement.date_pub|date:"M d, Y" }}</small>
+                                            <div class="announcement-item-actions">
+                                                <button class="ann-btn ann-btn-navigate"
+                                                        data-to-location-name="{{ announcement.to_location.room_name }}"
+                                                        data-to-location-floor="{{ announcement.to_location.floor_location }}"
+                                                        data-to-location-x="{{ announcement.to_location.x_coordinate }}"
+                                                        data-to-location-y="{{ announcement.to_location.y_coordinate }}"
+                                                        data-from-location-name="{{ announcement.from_location.room_name }}"
+                                                        data-from-location-floor="{{ announcement.from_location.floor_location }}"
+                                                        data-from-location-x="{{ announcement.from_location.x_coordinate }}"
+                                                        data-from-location-y="{{ announcement.from_location.y_coordinate }}">
+                                                    <i class="fa-solid fa-route"></i> Navigate
+                                                </button>
+                                                <button class="ann-btn ann-btn-location"
+                                                        data-location-name="{{ announcement.to_location.room_name }}"
+                                                        data-location-floor="{{ announcement.to_location.floor_location }}"
+                                                        data-location-x="{{ announcement.to_location.x_coordinate }}"
+                                                        data-location-y="{{ announcement.to_location.y_coordinate }}">
+                                                    <i class="fa-solid fa-map-pin"></i> Check Location
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                            {% empty %}
+                                <p>No announcements available.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="announcement-footer">
+                        <button class="announcement-action" id="announcementOkBtn" type="button">Got it</button>
+                    </div>
+                </div>
+                <!-- end announcement-content -->
+            </div>
+            <!-- end announcement-panel -->
+        </div>
+        <!-- end announcement-overlay -->
+    </div>
+    <div id="hazardPopup" class="announcement-overlay" aria-hidden="true">
+        <div class="announcement-panel"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="hazardTitle">
+            <div class="announcement-header">
+                <div class="announcement-badge">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>Report Hazard</span>
+                </div>
+                <button class="announcement-close"
+                        id="closeHazardBtn"
+                        type="button"
+                        aria-label="Close">×</button>
+            </div>
+            <div class="announcement-content">
+                <p class="announcement-eyebrow">Safety Alert</p>
+                <h2 id="hazardTitle">Report a Hazard</h2>
+                <p class="announcement-text">Help keep the campus safe. Fill in the details below to report a hazard.</p>
+                <div class="hazard-form">
+                    <div class="hazard-form-group"></div>
+                    <form action="{% url 'report' %}"
+                          method="post"
+                          enctype="multipart/form-data"
+                          class="hazard-form">
+                        {% csrf_token %}
+                        {% for field in form %}
+                            <div class="hazard-form-group">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.errors %}<small style="color:#e10600;">{{ field.errors|striptags }}</small>{% endif %}
                             </div>
-                        {% empty %}
-                            <p>No announcements available.</p>
                         {% endfor %}
                     </div>
-                </div>
-                <div class="announcement-footer">
-                    <button class="announcement-action" id="announcementOkBtn" type="button">Got it</button>
-                </div>
+                    <div class="announcement-footer" style="gap: 10px;">
+                        <button class="announcement-action"
+                                style="background: rgba(4,20,93,0.08);
+                                       color: #04145d;
+                                       box-shadow: none"
+                                id="hazardCancelBtn"
+                                type="button">Cancel</button>
+                        <button class="announcement-action" value="Submit "type="Submit">
+                            <i class="fa-solid fa-paper-plane"></i> Submit Report
+                        </button>
+                    </div>
+                </form>
             </div>
-            <!-- end announcement-content -->
-        </div>
-        <!-- end announcement-panel -->
-    </div>
-    <!-- end announcement-overlay -->
-</div>
-<div id="hazardPopup" class="announcement-overlay" aria-hidden="true">
-    <div class="announcement-panel"
-         role="dialog"
-         aria-modal="true"
-         aria-labelledby="hazardTitle">
-        <div class="announcement-header">
-            <div class="announcement-badge">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <span>Report Hazard</span>
-            </div>
-            <button class="announcement-close"
-                    id="closeHazardBtn"
-                    type="button"
-                    aria-label="Close">×</button>
-        </div>
-        <div class="announcement-content">
-            <p class="announcement-eyebrow">Safety Alert</p>
-            <h2 id="hazardTitle">Report a Hazard</h2>
-            <p class="announcement-text">Help keep the campus safe. Fill in the details below to report a hazard.</p>
-            <div class="hazard-form">
-                <div class="hazard-form-group"></div>
-                <form action="{% url 'report' %}"
-                      method="post"
-                      enctype="multipart/form-data"
-                      class="hazard-form">
-                    {% csrf_token %}
-                    {% for field in form %}
-                        <div class="hazard-form-group">
-                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                            {{ field }}
-                            {% if field.errors %}<small style="color:#e10600;">{{ field.errors|striptags }}</small>{% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-                <div class="announcement-footer" style="gap: 10px;">
-                    <button class="announcement-action"
-                            style="background: rgba(4,20,93,0.08);
-                                   color: #04145d;
-                                   box-shadow: none"
-                            id="hazardCancelBtn"
-                            type="button">Cancel</button>
-                    <button class="announcement-action" value="Submit "type="Submit">
-                        <i class="fa-solid fa-paper-plane"></i> Submit Report
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
-</div>
-<!-- ASSEMBLY POINT POPUP -->
-<div id="assemblyPopup" class="announcement-overlay" aria-hidden="true">
-    <div class="announcement-panel" role="dialog" aria-modal="true">
-        <div class="announcement-header">
-            <div class="announcement-badge">
-                <i class="fa-solid fa-people-group"></i>
-                <span>Assembly Point</span>
+    <!-- ASSEMBLY POINT POPUP -->
+    <div id="assemblyPopup" class="announcement-overlay" aria-hidden="true">
+        <div class="announcement-panel" role="dialog" aria-modal="true">
+            <div class="announcement-header">
+                <div class="announcement-badge">
+                    <i class="fa-solid fa-people-group"></i>
+                    <span>Assembly Point</span>
+                </div>
+                <button class="announcement-close" id="closeAssemblyBtn" type="button">×</button>
             </div>
-            <button class="announcement-close" id="closeAssemblyBtn" type="button">×</button>
-        </div>
-        <div class="announcement-content">
-            <p class="announcement-eyebrow">Emergency</p>
-            <h2>Assembly Points</h2>
-            <p class="announcement-text">In case of emergency, proceed calmly to the nearest assembly point.</p>
-            <div class="announcement-list">
-                <div class="announcement-item">
-                    <span class="announcement-dot"></span>
-                    <div class="announcement-item-content">
-                        <h3>Main Quadrangle</h3>
-                        <div class="announcement-detail-static">
-                            <p>Ground floor — front of the building near the main entrance.</p>
+            <div class="announcement-content">
+                <p class="announcement-eyebrow">Emergency</p>
+                <h2>Assembly Points</h2>
+                <p class="announcement-text">In case of emergency, proceed calmly to the nearest assembly point.</p>
+                <div class="announcement-list">
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Main Quadrangle</h3>
+                            <div class="announcement-detail-static">
+                                <p>Ground floor — front of the building near the main entrance.</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="announcement-item">
-                    <span class="announcement-dot"></span>
-                    <div class="announcement-item-content">
-                        <h3>Parking Area</h3>
-                        <div class="announcement-detail-static">
-                            <p>Side exit — proceed to the open parking lot on the east side.</p>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Parking Area</h3>
+                            <div class="announcement-detail-static">
+                                <p>Side exit — proceed to the open parking lot on the east side.</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="announcement-item">
-                    <span class="announcement-dot"></span>
-                    <div class="announcement-item-content">
-                        <h3>Back Court</h3>
-                        <div class="announcement-detail-static">
-                            <p>Rear exit — basketball court behind the main building.</p>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Back Court</h3>
+                            <div class="announcement-detail-static">
+                                <p>Rear exit — basketball court behind the main building.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="announcement-footer">
-            <button class="announcement-action" id="assemblyOkBtn" type="button">Got it</button>
+            <div class="announcement-footer">
+                <button class="announcement-action" id="assemblyOkBtn" type="button">Got it</button>
+            </div>
         </div>
     </div>
-</div>
-<!-- SAFETY TIPS POPUP -->
-<div id="safetyPopup" class="announcement-overlay" aria-hidden="true">
-    <div class="announcement-panel" role="dialog" aria-modal="true">
-        <div class="announcement-header">
-            <div class="announcement-badge">
-                <i class="fa-solid fa-shield-heart"></i>
-                <span>Safety Tips</span>
+    <!-- SAFETY TIPS POPUP -->
+    <div id="safetyPopup" class="announcement-overlay" aria-hidden="true">
+        <div class="announcement-panel" role="dialog" aria-modal="true">
+            <div class="announcement-header">
+                <div class="announcement-badge">
+                    <i class="fa-solid fa-shield-heart"></i>
+                    <span>Safety Tips</span>
+                </div>
+                <button class="announcement-close" id="closeSafetyBtn" type="button">×</button>
             </div>
-            <button class="announcement-close" id="closeSafetyBtn" type="button">×</button>
-        </div>
-        <div class="announcement-content">
-            <p class="announcement-eyebrow">Stay Safe</p>
-            <h2>Campus Safety Tips</h2>
-            <p class="announcement-text">Follow these guidelines to keep yourself and others safe inside the campus.</p>
-            <div class="announcement-list">
-                <div class="announcement-item">
-                    <span class="announcement-dot"></span>
-                    <div class="announcement-item-content">
-                        <h3>Keep Hallways Clear</h3>
-                        <div class="announcement-detail-static">
-                            <p>Do not block corridors, stairways, or emergency exits at any time.</p>
+            <div class="announcement-content">
+                <p class="announcement-eyebrow">Stay Safe</p>
+                <h2>Campus Safety Tips</h2>
+                <p class="announcement-text">Follow these guidelines to keep yourself and others safe inside the campus.</p>
+                <div class="announcement-list">
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Keep Hallways Clear</h3>
+                            <div class="announcement-detail-static">
+                                <p>Do not block corridors, stairways, or emergency exits at any time.</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="announcement-item">
-                    <span class="announcement-dot"></span>
-                    <div class="announcement-item-content">
-                        <h3>Follow Exit Signs</h3>
-                        <div class="announcement-detail-static">
-                            <p>In emergencies, follow posted directional signs and proceed to the nearest exit calmly.</p>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Follow Exit Signs</h3>
+                            <div class="announcement-detail-static">
+                                <p>In emergencies, follow posted directional signs and proceed to the nearest exit calmly.</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="announcement-item">
-                    <span class="announcement-dot"></span>
-                    <div class="announcement-item-content">
-                        <h3>No Running Indoors</h3>
-                        <div class="announcement-detail-static">
-                            <p>Walk inside the building to avoid accidents especially on stairways.</p>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>No Running Indoors</h3>
+                            <div class="announcement-detail-static">
+                                <p>Walk inside the building to avoid accidents especially on stairways.</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="announcement-item">
-                    <span class="announcement-dot"></span>
-                    <div class="announcement-item-content">
-                        <h3>Report Suspicious Activity</h3>
-                        <div class="announcement-detail-static">
-                            <p>Immediately report anything unusual to the nearest security personnel.</p>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Report Suspicious Activity</h3>
+                            <div class="announcement-detail-static">
+                                <p>Immediately report anything unusual to the nearest security personnel.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="announcement-footer">
-            <button class="announcement-action" id="safetyOkBtn" type="button">Got it</button>
+            <div class="announcement-footer">
+                <button class="announcement-action" id="safetyOkBtn" type="button">Got it</button>
+            </div>
         </div>
     </div>
-</div>
-<!-- CONTACT SECURITY POPUP -->
-<div id="contactPopup" class="announcement-overlay" aria-hidden="true">
-    <div class="announcement-panel" role="dialog" aria-modal="true">
-        <div class="announcement-header">
-            <div class="announcement-badge">
-                <i class="fa-solid fa-phone"></i>
-                <span>Contact Security</span>
+    <!-- CONTACT SECURITY POPUP -->
+    <div id="contactPopup" class="announcement-overlay" aria-hidden="true">
+        <div class="announcement-panel" role="dialog" aria-modal="true">
+            <div class="announcement-header">
+                <div class="announcement-badge">
+                    <i class="fa-solid fa-phone"></i>
+                    <span>Contact Security</span>
+                </div>
+                <button class="announcement-close" id="closeContactBtn" type="button">×</button>
             </div>
-            <button class="announcement-close" id="closeContactBtn" type="button">×</button>
-        </div>
-        <div class="announcement-content">
-            <p class="announcement-eyebrow">Security</p>
-            <h2>Contact Security</h2>
-            <p class="announcement-text">Reach campus security immediately in case of emergency or concern.</p>
-            <div class="announcement-list">
-                <div class="announcement-item">
-                    <span class="announcement-dot"></span>
-                    <div class="announcement-item-content">
-                        <h3>Main Security Office</h3>
-                        <div class="announcement-detail-static">
-                            <p>Ground Floor — near the main entrance</p>
-                            <a href="tel:+6300000000"
-                               class="ann-btn ann-btn-navigate"
-                               style="margin-top:10px;
-                                      text-decoration:none">
-                                <i class="fa-solid fa-phone"></i> Call Now
-                            </a>
+            <div class="announcement-content">
+                <p class="announcement-eyebrow">Security</p>
+                <h2>Contact Security</h2>
+                <p class="announcement-text">Reach campus security immediately in case of emergency or concern.</p>
+                <div class="announcement-list">
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Main Security Office</h3>
+                            <div class="announcement-detail-static">
+                                <p>Ground Floor — near the main entrance</p>
+                                <a href="tel:+6300000000"
+                                   class="ann-btn ann-btn-navigate"
+                                   style="margin-top:10px;
+                                          text-decoration:none">
+                                    <i class="fa-solid fa-phone"></i> Call Now
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Emergency Hotline</h3>
+                            <div class="announcement-detail-static">
+                                <p>Available 24/7 for urgent concerns</p>
+                                <a href="tel:+6300000001"
+                                   class="ann-btn ann-btn-navigate"
+                                   style="margin-top:10px;
+                                          text-decoration:none">
+                                    <i class="fa-solid fa-phone"></i> Call Now
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="announcement-item">
-                    <span class="announcement-dot"></span>
-                    <div class="announcement-item-content">
-                        <h3>Emergency Hotline</h3>
-                        <div class="announcement-detail-static">
-                            <p>Available 24/7 for urgent concerns</p>
-                            <a href="tel:+6300000001"
-                               class="ann-btn ann-btn-navigate"
-                               style="margin-top:10px;
-                                      text-decoration:none">
-                                <i class="fa-solid fa-phone"></i> Call Now
-                            </a>
-                        </div>
-                    </div>
-                </div>
             </div>
-        </div>
-        <div class="announcement-footer">
-            <button class="announcement-action" id="contactOkBtn" type="button">Got it</button>
+            <div class="announcement-footer">
+                <button class="announcement-action" id="contactOkBtn" type="button">Got it</button>
+            </div>
         </div>
     </div>
-</div>
 </body>
 <script>
     if (window.history.replaceState) {

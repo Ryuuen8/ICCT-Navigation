@@ -35,10 +35,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeSafetyBtn = document.getElementById('closeSafetyBtn');
     const safetyOkBtn = document.getElementById('safetyOkBtn');
 
+    const locationName = document.getElementById('current-location-name');
+    const locationDetail = document.getElementById('current-location-detail');
+    const locationDot = document.getElementById('location-dot');
+
     let activeSearchField = 'from';
     let fromSelected = '';
     let toSelected = '';
 
+    function loadScannedLocation() {
+        const saved = sessionStorage.getItem('scanned_location');
+        if (saved) {
+            const loc = JSON.parse(saved);
+            locationName.textContent = loc.name || 'Unknown Room';
+            locationDetail.textContent = loc.detail || '';
+            locationDot.style.background = '#00c853'; // green = active
+        }
+    }
+    loadScannedLocation();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const qrLocation = urlParams.get('location');
+    const qrDetail = urlParams.get('detail');
+
+    if (qrLocation) {
+        const locData = { name: qrLocation, detail: qrDetail || '' };
+        sessionStorage.setItem('scanned_location', JSON.stringify(locData));
+        loadScannedLocation();
+
+        // Clean URL without reloading
+        window.history.replaceState({}, '', window.location.pathname);
+    }
 
     function normalizeFloorValue(value) {
         if (value === null || value === undefined) {
