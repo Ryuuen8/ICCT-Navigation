@@ -291,6 +291,39 @@ def index(request):
         "connections": connections_data,
         "path": [],
     })
+
+def offline_map(request):
+    locations = Location.objects.all()
+    data = [
+        {
+            "floor": loc.floor_location,
+            "floor_location": loc.floor_location,
+            "room_name": loc.room_name,
+            "coordinates": loc.coordinates,
+            "x_coordinate": loc.x_coordinate,
+            "y_coordinate": loc.y_coordinate,
+            "stair_type": loc.stair_type,
+        }
+        for loc in locations
+    ]
+    connections_data = [
+        {
+            "from": conn.from_location.room_name,
+            "to": conn.to_location.room_name,
+            "cost": conn.cost,
+            "from_floor": conn.from_location.floor_location,
+            "to_floor": conn.to_location.floor_location,
+        }
+        for conn in Connection.objects.select_related(
+            "from_location", "to_location"
+        ).all()
+    ]
+
+    return render(request, "offline-map.html", {
+        "locations": data,
+        "connections": connections_data,
+        "path": [],
+    })
     
 def offline(request):
     return render(request, 'offline.html')

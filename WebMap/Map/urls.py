@@ -17,6 +17,7 @@ urlpatterns = [
     path('admin-editor/', views.admin_management, name="map-editor"),
     path('floormap/', views.floormap, name="floormap"),
     path('offline/', views.offline, name="offline"),
+    path('offline-map/', views.offline_map, name="offline_map"),
     
     path('locate/', views.locate, name="locate"),
     path('submit-report/', views.announcement, name="report"),

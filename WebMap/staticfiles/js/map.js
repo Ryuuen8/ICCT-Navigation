@@ -335,6 +335,31 @@ function drawPath(pathData) {
 
 
 
+function findOfflinePath(start, end) {
+    const graph = window.OfflinePathfinder?.loadGraphFromPage?.();
+
+    if (!graph) {
+        return false;
+    }
+
+    const result = window.OfflinePathfinder.findPath(
+        graph.locations,
+        graph.connections,
+        start,
+        end
+    );
+
+    if (result.error) {
+        alert(`Navigation error: ${result.error}`);
+        return true;
+    }
+
+    console.log('PATH (offline):', result.path);
+    drawPath(result);
+    alert(`Path found from ${start} to ${end}!`);
+    return true;
+}
+
 function requestPath(start, end) {
     if (!navigator.onLine) {
         const graph = window.OfflinePathfinder?.loadGraphFromPage?.();
@@ -362,6 +387,10 @@ function requestPath(start, end) {
     const csrftoken = getCSRFToken();
 
     if (!csrftoken) {
+        if (findOfflinePath(start, end)) {
+            return;
+        }
+
         console.error('CSRF token missing — request blocked');
         return;
     }
@@ -387,6 +416,9 @@ function requestPath(start, end) {
             if (!response.ok) {
                 const text = await response.text();
                 console.error('SERVER ERROR:', text);
+                if (findOfflinePath(start, end)) {
+                    return null;
+                }
                 return null;
             }
 
@@ -401,6 +433,9 @@ function requestPath(start, end) {
         })
         .catch((error) => {
             console.error('FETCH ERROR:', error);
+            if (findOfflinePath(start, end)) {
+                return;
+            }
             alert('❌ Error finding path. Check console for details.');
         });
 }

@@ -1,7 +1,8 @@
-const CACHE_VERSION = "webmap-pwa-v3";
+const CACHE_VERSION = "webmap-pwa-v4";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const OFFLINE_URL = "/offline/";
+const OFFLINE_MAP_URL = "/offline-map/";
 
 const APP_PAGES = [
     "/",
@@ -9,6 +10,7 @@ const APP_PAGES = [
     "/emergency/",
     "/floormap/",
     OFFLINE_URL,
+    OFFLINE_MAP_URL,
 ];
 
 const APP_STATIC = [
@@ -16,13 +18,18 @@ const APP_STATIC = [
     "/static/css/emergency.css",
     "/static/css/floor-maps.css",
     "/static/css/style.css",
-    "/static/css/icons.css",
     "/static/js/mainscript.js",
     "/static/js/script.js",
     "/static/js/map.js",
-    "/static/js/pathfind.js",
+    "/static/js/offline/pathfind.js",
     "/static/js/pwa-install.js",
+    "/static/images/icct-logo-square.png",
     "/static/images/Exit_icon.svg",
+    "/static/images/first-floor.svg",
+    "/static/images/second-floor.svg",
+    "/static/images/third-floor.svg",
+    "/static/images/fourth-floor.svg",
+    "/static/images/fifth-floor.svg",
 ];
 
 const CDN_ASSETS = [

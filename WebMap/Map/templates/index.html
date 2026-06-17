@@ -38,9 +38,10 @@
         </div>
     </div>
     {{ locations|json_script:"locations-data" }}
+    {{ connections|json_script:"connections-data" }}
     {{ path|json_script:"path-data" }}
 {% endblock %}
 {% block extra_scripts %}
-    <script src="{% static "js/pathfind.js" %}"></script>
+    <script src="{% static "js/offline/pathfind.js" %}"></script>
     <script src="{% static "js/map.js" %}"></script>
 {% endblock %}

@@ -1,0 +1,64 @@
+{% load static pwa %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        {% progressive_web_app_meta %}
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Offline Map - ICCT Navigation</title>
+        <link rel="stylesheet" href="{% static "css/style.css" %}">
+        <link rel="stylesheet"
+              href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+              integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+              crossorigin="">
+        <link rel="stylesheet"
+              href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+                integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+                crossorigin=""></script>
+        <script src="https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.min.js"></script>
+        <script src="https://unpkg.com/@elfalem/leaflet-curve"></script>
+    </head>
+    <body>
+        <div id="map"></div>
+        <div class="search-container">
+            <input type="text"
+                   id="searchInput"
+                   placeholder="Search locations..."
+                   autocomplete="off">
+            <ul id="suggestionsList" class="suggestions-list"></ul>
+        </div>
+        <div class="action-container">
+            <button id="navbtn" class="navigate-button" aria-label="Start navigation">
+                <i class="fa-solid fa-location-arrow"></i>
+            </button>
+        </div>
+        <div class="floor-container">
+            <div class="fmenu-container">
+                <button class="floors-box"
+                        id="floorBtn"
+                        aria-expanded="false"
+                        aria-controls="floorMenu">
+                    <span class="floors">Floors</span>
+                </button>
+                <div class="floor-menu" id="floorMenu">
+                    <button class="floor-item" data-floor="1">F1</button>
+                    <button class="floor-item" data-floor="2">F2</button>
+                    <button class="floor-item" data-floor="3">F3</button>
+                    <button class="floor-item" data-floor="4">F4</button>
+                    <button class="floor-item" data-floor="5">F5</button>
+                </div>
+            </div>
+        </div>
+        {{ locations|json_script:"locations-data" }}
+        {{ connections|json_script:"connections-data" }}
+        {{ path|json_script:"path-data" }}
+        <script src="{% static "js/offline/pathfind.js" %}"></script>
+        <script src="{% static "js/map.js" %}"></script>
+        <script>
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/static/js/serviceworker.js');
+            }
+        </script>
+    </body>
+</html>
