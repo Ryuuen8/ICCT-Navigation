@@ -41,5 +41,6 @@
     {{ path|json_script:"path-data" }}
 {% endblock %}
 {% block extra_scripts %}
+    <script src="{% static "js/pathfind.js" %}"></script>
     <script src="{% static "js/map.js" %}"></script>
 {% endblock %}

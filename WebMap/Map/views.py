@@ -291,6 +291,9 @@ def index(request):
         "connections": connections_data,
         "path": [],
     })
+    
+def offline(request):
+    return render(request, 'offline.html')
 
 @login_required(login_url="admin:login")
 @user_passes_test(staff_check)
