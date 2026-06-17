@@ -260,30 +260,38 @@ def index(request):
     into the template so the frontend can render room polygons and
     build a client-side graph view.
     """
-    locations  = Location.objects.all()
+    locations = Location.objects.all()
     data = [
         {
             "floor": loc.floor_location,
+            "floor_location": loc.floor_location,
             "room_name": loc.room_name,
             "coordinates": loc.coordinates,
             "x_coordinate": loc.x_coordinate,
             "y_coordinate": loc.y_coordinate,
+            "stair_type": loc.stair_type,
         }
         for loc in locations
     ]
-    G = nx.Graph()
-    for loc in locations:
-        G.add_node(loc.room_name, pos=(loc.floor_location,loc.x_coordinate, loc.y_coordinate, loc.coordinates))
-    for conn in Connection.objects.all():
-        G.add_edge(            
-            conn.from_location.room_name,
-            conn.to_location.room_name,
-            weight=conn.cost)
-    print(list(G.edges()))
+    connections_data = [
+        {
+            "from": conn.from_location.room_name,
+            "to": conn.to_location.room_name,
+            "cost": conn.cost,
+            "from_floor": conn.from_location.floor_location,
+            "to_floor": conn.to_location.floor_location,
+        }
+        for conn in Connection.objects.select_related(
+            "from_location", "to_location"
+        ).all()
+    ]
+
     return render(request, "index.html", {
         "locations": data,
+        "connections": connections_data,
+        "path": [],
     })
-    
+
 @login_required(login_url="admin:login")
 @user_passes_test(staff_check)
 def admin_dashboard(request):
