@@ -30,11 +30,11 @@ const floors = {
     },
     4: {
         image: L.imageOverlay('/static/images/fourth-floor.svg', bounds),
-        layer: L.layerGroup()    
+        layer: L.layerGroup()
     },
     5: {
         image: L.imageOverlay('/static/images/fifth-floor.svg', bounds),
-        layer: L.layerGroup()    
+        layer: L.layerGroup()
     }
 };
 
@@ -333,8 +333,38 @@ function drawPath(pathData) {
     });
 }
 
+
+
 function requestPath(start, end) {
+    if (!navigator.onLine) {
+        const graph = window.OfflinePathfinder?.loadGraphFromPage?.();
+
+        if (graph) {
+            const result = window.OfflinePathfinder.findPath(
+                graph.locations,
+                graph.connections,
+                start,
+                end
+            );
+
+            if (result.error) {
+                alert(`❌ ${result.error}`);
+                return;
+            }
+
+            console.log('PATH (offline):', result.path);
+            drawPath(result);
+            alert(`✅ Path found from ${start} to ${end}!`);
+            return;
+        }
+    }
+
     const csrftoken = getCSRFToken();
+
+    if (!csrftoken) {
+        console.error('CSRF token missing — request blocked');
+        return;
+    }
 
     if (!csrftoken) {
         console.error('CSRF token missing — request blocked');
@@ -421,7 +451,7 @@ locations.forEach(function (loc) {
     const polygon = L.polygon(loc.coordinates, {
         color: "transparent",
         weight: 2,
-            fillOpacity: 0.15
+        fillOpacity: 0.15
     }).addTo(floors[loc.floor].layer);
     polygon.bindPopup(`<b>${loc.room_name}</b>`);
 
@@ -506,12 +536,12 @@ document.querySelectorAll(".floor-item").forEach((btn) => {
 });
 
 // search.js
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('searchInput');
     const suggestionsList = document.getElementById('suggestionsList');
     let locations = [];
     let searchTimer;
-    
+
     // Load locations from your Django JSON script tag
     function loadLocations() {
         try {
@@ -543,44 +573,44 @@ document.addEventListener('DOMContentLoaded', function() {
     // Search and display suggestions
     function searchLocations(query) {
         if (!query || query.length < 2) return [];
-        
-        return locations.filter(loc => 
+
+        return locations.filter(loc =>
             loc.room_name.toLowerCase().includes(query.toLowerCase())
         ).slice(0, 10);
     }
-    
+
     function displaySuggestions(suggestions) {
         suggestionsList.innerHTML = '';
-        
+
         if (suggestions.length === 0) {
             suggestionsList.classList.remove('show');
             return;
         }
-        
+
         suggestions.forEach(loc => {
             const li = document.createElement('li');
             li.className = 'suggestion-item';
-            
+
             const nameDiv = document.createElement('div');
             nameDiv.className = 'suggestion-name';
             nameDiv.textContent = loc.room_name;
-            
+
             const floorDiv = document.createElement('div');
             floorDiv.className = 'suggestion-floor';
             floorDiv.textContent = `Floor ${loc.floor}`;
-            
+
             li.appendChild(nameDiv);
             li.appendChild(floorDiv);
-            
+
             li.addEventListener('click', (e) => {
                 e.preventDefault();
                 searchInput.value = loc.room_name;
                 suggestionsList.classList.remove('show');
-                
+
                 // Trigger map navigation
                 if (typeof window.switchFloor === 'function') {
                     window.switchFloor(loc.floor);
-                    
+
                     // Wait for floor to switch before adding marker
                     setTimeout(() => {
                         // Check if coordinates exist
@@ -597,9 +627,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                 fillOpacity: 0.7,
                                 zIndex: 1000
                             });
-                            
+
                             searchMarkerLayer.addLayer(currentMarker);
-                            
+
                             // Add popup to marker
                             currentMarker.bindPopup(`
                                 <div style="text-align: center; padding: 10px;">
@@ -608,9 +638,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <small>Search result</small>
                                 </div>
                             `).openPopup();
-                            
+
                             // Center map on marker
-                            
+
                             const markerToClear = currentMarker;
                             currentMarkerTimeout = setTimeout(() => {
                                 if (currentMarker === markerToClear) {
@@ -622,7 +652,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     currentMarkerTimeout = null;
                                 }
                             }, 5000);
-                            
+
                             console.log(`✅ Navigated to: ${loc.room_name}`);
                         } else {
                             console.warn('No coordinates for location:', loc);
@@ -635,36 +665,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             });
-            
+
             suggestionsList.appendChild(li);
         });
-        
+
         suggestionsList.classList.add('show');
     }
-    
+
     // Event listeners
-    searchInput.addEventListener('input', function(e) {
+    searchInput.addEventListener('input', function (e) {
         clearTimeout(searchTimer);
         const query = this.value.trim();
-        
+
         if (query.length < 2) {
             suggestionsList.classList.remove('show');
             return;
         }
-        
+
         searchTimer = setTimeout(() => {
             const results = searchLocations(query);
             displaySuggestions(results);
         }, 250);
     });
-    
+
     // Close suggestions on outside click
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         if (!searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
             suggestionsList.classList.remove('show');
         }
     });
-    
+
     loadLocations();
 });
 
