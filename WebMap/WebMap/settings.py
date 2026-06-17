@@ -159,7 +159,7 @@ PWA_APP_SCREENSHOTS = [
 ]
 
 # Service Worker
-PWA_SERVICE_WORKER_PATH = BASE_DIR / 'Map' / 'static' / 'js' / 'service_worker.js'
+PWA_SERVICE_WORKER_PATH = BASE_DIR / 'Map' / 'static' / 'js' / 'serviceworker.js'
 
 # Cache strategy
 PWA_CUSTOM_SW_PATH = BASE_DIR / 'Map' / 'static' / 'js' / 'custom_service_worker.js'
