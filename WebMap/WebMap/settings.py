@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'Map.apps.MapConfig',
     'rest_framework',
+    'pwa'
 ]
 
 MIDDLEWARE = [
@@ -125,7 +126,43 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+PWA_APP_NAME = 'ICCT Navigation'
+PWA_APP_DESCRIPTION = 'Indoor Navigation & Emergency Guide for ICCT Cainta'
+PWA_APP_THEME_COLOR = '#0066ff'
+PWA_APP_BACKGROUND_COLOR = '#ffffff'
+PWA_APP_DISPLAY = 'standalone'
+PWA_APP_SCOPE = '/'
+PWA_APP_ORIENTATION = 'portrait-primary'
+PWA_APP_START_URL = '/'
+PWA_APP_STATUS_BAR_COLOR = '#04145d'
+
+# Icons
+PWA_APP_ICONS = [
+    {
+        'src': '/static/images/icct-logo-square.png',
+        'sizes': '192x192',
+        'type': 'image/png',
+    },
+    {
+        'src': '/static/images/icct-logo-square.png',
+        'sizes': '512x512',
+        'type': 'image/png',
+    },
+]
+
+PWA_APP_SCREENSHOTS = [
+    {
+        'src': '/static/images/screenshot1.png',
+        'sizes': '540x720',
+        'type': 'image/png',
+    },
+]
+
+# Service Worker
+PWA_SERVICE_WORKER_PATH = BASE_DIR / 'Map' / 'static' / 'js' / 'service_worker.js'
+
+# Cache strategy
+PWA_CUSTOM_SW_PATH = BASE_DIR / 'Map' / 'static' / 'js' / 'custom_service_worker.js'
 
 # Static files
 STATIC_URL = '/static/'

@@ -10,6 +10,7 @@ router.register(r'hazards', views.HazardReportViewSet)
 
 urlpatterns = [
     path('', views.announcement, name='main'),
+    path('', include('pwa.urls')),  
     path('map/', views.index, name='mainmap'),
     path('emergency/', views.emergency, name="emergency"),
     path('admin-dashboard/', views.admin_dashboard, name="adminds"),
