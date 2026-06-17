@@ -1,4 +1,4 @@
-const CACHE_VERSION = "webmap-pwa-v2";
+const CACHE_VERSION = "webmap-pwa-v3";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const OFFLINE_URL = "/offline/";
@@ -16,23 +16,18 @@ const APP_STATIC = [
     "/static/css/emergency.css",
     "/static/css/floor-maps.css",
     "/static/css/style.css",
+    "/static/css/icons.css",
     "/static/js/mainscript.js",
     "/static/js/script.js",
     "/static/js/map.js",
+    "/static/js/pathfind.js",
+    "/static/js/pwa-install.js",
     "/static/images/Exit_icon.svg",
-    "/static/images/Exit_icon.svg",
-    "/static/images/first-floor.svg",
-    "/static/images/second-floor.svg",
-    "/static/images/third-floor.svg",
-    "/static/images/fourth-floor.svg",
-    "/static/images/fifth-floor.svg",
 ];
 
 const CDN_ASSETS = [
     "https://unpkg.com/leaflet@1.6.0/dist/leaflet.css",
     "https://unpkg.com/leaflet@1.6.0/dist/leaflet.js",
-    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css",
-    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css",
     "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js",
     "https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.min.js",
     "https://unpkg.com/@elfalem/leaflet-curve",
