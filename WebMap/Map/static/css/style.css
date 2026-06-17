@@ -1,136 +1,137 @@
-/* Minimal refactor: consolidated rules and reduced comments */
-
-/* Reset */
-* {
+/* ── RESET ────────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent
+    -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    touch-action: manipulation
+    touch-action: manipulation;
 }
 
-/* Base layout */
 body {
     position: fixed;
     inset: 0;
     background: #0b1220;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* ── MAP ──────────────────────────────────────────────────────────────────── */
 #map {
     position: fixed;
     inset: 0;
     width: 100%;
     height: 100dvh;
     z-index: 1;
-    background: radial-gradient(circle at center, #f2f2f2 0%, #d9d9d9 55%, #cfcfcf 100%) !important
+    background: radial-gradient(circle at center, #f2f2f2 0%, #d9d9d9 55%, #cfcfcf 100%) !important;
 }
 
-/* Leaflet tweaks */
+/* ── LEAFLET ──────────────────────────────────────────────────────────────── */
 .leaflet-container {
     background: transparent !important;
     font-family: inherit;
-    touch-action: pan-x pan-y
+    touch-action: pan-x pan-y;
 }
 
 .leaflet-image-layer {
     filter: grayscale(20%) brightness(1.05) contrast(0.95);
-    opacity: .9
+    opacity: 0.9;
 }
 
-/* Controls */
 .leaflet-control-zoom {
     border: none !important;
     border-radius: 16px !important;
     overflow: hidden;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, .25) !important
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
 }
 
 .leaflet-control-zoom a {
-    background: rgba(255, 255, 255, .95) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
     color: #111 !important;
-    width: 34px !important;
-    height: 34px !important;
-    line-height: 34px !important;
-    font-size: 18px !important
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+    font-size: 18px !important;
 }
 
-/* Popups & markers */
 .leaflet-popup-content-wrapper {
-    border-radius: 18px
+    border-radius: 18px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .leaflet-popup-content {
     font-size: 14px;
-    margin: 10px 14px
+    margin: 10px 14px;
 }
 
 .leaflet-marker-icon {
-    filter: drop-shadow(0 0 4px cyan) drop-shadow(0 0 10px rgba(0, 255, 255, .6))
+    filter: drop-shadow(0 0 4px cyan) drop-shadow(0 0 10px rgba(0, 255, 255, 0.6));
 }
 
-/* Coordinate display */
+/* ── COORDINATE DISPLAY ───────────────────────────────────────────────────── */
 .coords-display {
-    background: rgba(0, 0, 0, .72) !important;
+    background: rgba(0, 0, 0, 0.65) !important;
     color: #fff;
-    padding: 8px 12px !important;
-    border-radius: 12px;
-    font-size: 12px;
-    backdrop-filter: blur(10px)
+    padding: 6px 12px !important;
+    border-radius: 10px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    backdrop-filter: blur(10px);
+    letter-spacing: 0.3px;
 }
 
+/* ── SEARCH ───────────────────────────────────────────────────────────────── */
 .search-container {
-    position: absolute;
-    top: 10px;
+    position: fixed;
+    top: 16px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 1000;
-    width: 300px;
-}
-
-.search-container {
-    position: relative;
-    width: 100%;
-    max-width: 400px;
+    z-index: 1002;
+    width: calc(100% - 120px);
+    max-width: 380px;
 }
 
 #searchInput {
     width: 100%;
-    padding: 12px 16px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 999px;
     font-size: 14px;
+    font-family: inherit;
     outline: none;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    transition: box-shadow 0.2s;
+    color: #111;
+}
+
+#searchInput::placeholder {
+    color: #999;
 }
 
 #searchInput:focus {
-    border-color: #00E5FF;
-    box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.35), 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .suggestions-list {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     left: 0;
     right: 0;
-    background: white;
-    border: 1px solid #ddd;
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-    max-height: 300px;
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: 16px;
+    max-height: 260px;
     overflow-y: auto;
-    z-index: 1000;
+    z-index: 1003;
     margin: 0;
-    padding: 0;
+    padding: 6px;
     list-style: none;
     display: none;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
 }
 
 .suggestions-list.show {
@@ -138,415 +139,241 @@ body {
 }
 
 .suggestion-item {
-    padding: 12px 16px;
+    padding: 10px 14px;
     cursor: pointer;
-    border-bottom: 1px solid #f0f0f0;
+    border-radius: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: background 0.2s;
+    transition: background 0.15s;
+    gap: 8px;
 }
 
 .suggestion-item:hover {
-    background: #f5f5f5;
+    background: #f0f4ff;
 }
 
 .suggestion-name {
     font-weight: 500;
-    color: #333;
+    color: #1a1a2e;
+    font-size: 0.86rem;
 }
 
 .suggestion-floor {
-    font-size: 12px;
-    color: #666;
-    background: #f0f0f0;
+    font-size: 11px;
+    color: #04145d;
+    background: rgba(4, 20, 93, 0.08);
     padding: 2px 8px;
-    border-radius: 12px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    font-weight: 600;
 }
 
+/* ── NAV BUTTON ───────────────────────────────────────────────────────────── */
+.action-container {
+    position: fixed;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1001;
+}
+
+.action-container button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.96);
+    border: none;
+    border-radius: 50%;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    height: 48px;
+    width: 48px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+    font-size: 1.1rem;
+    color: #04145d;
+}
+
+.action-container button:hover {
+    background: #f0f4ff;
+    transform: scale(1.05);
+}
+
+.action-container button:active {
+    transform: scale(0.95);
+}
+
+/* ── FLOOR BUTTONS — individual circles ───────────────────────────────────── */
+.floor-container {
+    position: fixed;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* hide the old fmenu-container toggle button — replaced by direct circles */
+.floors-box {
+    display: none;
+}
+
+.floor-menu {
+    position: static;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+    background: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: auto;
+}
+
+/* each floor = its own circle */
+.floor-item {
+    all: unset;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: #04145d;
+    transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+    user-select: none;
+}
+
+.floor-item:hover {
+    background: #ffffff;
+    transform: scale(1.08);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+
+.floor-item:active {
+    transform: scale(0.94);
+}
+
+.floor-item.active {
+    background: #04145d;
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(4, 20, 93, 0.45);
+}
+
+/* ── BOTTOM MENU ──────────────────────────────────────────────────────────── */
+.app-container {
+    position: absolute;
+    inset: 0;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.menu-container {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    width: calc(100% - 32px);
+    max-width: 480px;
+    padding: 12px 20px 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: clamp(10px, 4vw, 24px);
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(24px);
+    border-radius: 28px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    z-index: 1001;
+    pointer-events: auto;
+    border: 0.5px solid rgba(255, 255, 255, 0.6);
+}
+
+.menu-box {
+    width: clamp(50px, 14vw, 72px);
+    height: clamp(50px, 14vw, 72px);
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 20px;
+    transform: translateY(-32%);
+    transition: 0.15s ease;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+    border: 0.5px solid rgba(0, 0, 0, 0.06);
+}
+
+.menu-box:hover {
+    background: #fff;
+    transform: translateY(-36%);
+}
+
+.menu-box:active {
+    transform: translateY(-28%) scale(0.93);
+    background: #eef7fb;
+}
+
+.menu-box i {
+    font-size: clamp(20px, 6vw, 30px);
+    color: #19c3e6;
+}
+
+/* ── MISC ─────────────────────────────────────────────────────────────────── */
 .loading, .error {
     padding: 12px;
     text-align: center;
     color: #666;
+    font-size: 0.85rem;
 }
 
-/* Action/floor controls */
-.action-container {
-    position: absolute;
-    right: 0;
-    top: 25%;
-    transform: translateY(-25%) translateX(-25%);
-    z-index: 1000
-}
+/* ── RESPONSIVE ───────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .search-container {
+        top: 12px;
+        width: calc(100% - 110px);
+    }
 
-.action-container button {
-    align-items: center;
-    background: #fff;
-    border: 3px solid transparent;
-    border-radius: 50%;
-    box-shadow: 0 clamp(2px, 0.6vw, 6px) clamp(6px, 1.5vw, 14px) rgba(0, 0, 0, .12);
-    height: 40px;
-    width: 40px
-}
+    .floor-container {
+        left: 8px;
+        gap: 6px;
+    }
 
-.action-container button:hover {
-    background: #f2f2f2;
-    cursor: pointer
-}
+    .floor-item {
+        width: 38px;
+        height: 38px;
+        font-size: 11px;
+    }
 
-.fmenu-container {
-    position: fixed;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    z-index: 1001
-}
+    .action-container {
+        right: 10px;
+    }
 
-.floors-box {
-    all: unset;
-    width: clamp(46px, 12vw, 78px);
-    height: clamp(46px, 12vw, 78px);
-    background: #fff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: clamp(14px, 2vw, 22px);
-    cursor: pointer;
-    user-select: none;
-    font-size: clamp(12px, 4vw, 20px);
-    font-family: 'Courier New', Courier, monospace;
-    box-shadow: 0 clamp(2px, 0.6vw, 6px) clamp(6px, 1.5vw, 14px) rgba(0, 0, 0, .12);
-    transition: .15s ease
-}
+    .action-container button {
+        width: 42px;
+        height: 42px;
+    }
 
-.floor-menu {
-    position: absolute;
-    top: calc(100% + 10px);
-    left: 0;
-    background: #fff;
-    border-radius: 14px;
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, .15);
-    opacity: 0;
-    transform: translateY(-8px) scale(.98);
-    pointer-events: none;
-    transition: .15s ease
-}
-
-.floor-menu.show {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto
-}
-
-.floor-item {
-    all: unset;
-    padding: 10px 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    transition: .15s ease
-}
-
-.floor-item:hover {
-    background: #f2f2f2
-}
-
-/* App/menu */
-.app-container {
-    position: absolute;
-    inset: 0;
-    z-index: 1000;
-    pointer-events: none
-}
-
-.menu-container {
-    position: fixed;
-    left: 50%;
-    bottom: 14px;
-    transform: translateX(-50%);
-    width: calc(100% - 24px);
-    max-width: 520px;
-    padding: 14px 18px 22px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: clamp(8px, 3vw, 20px);
-    background: rgba(255, 255, 255, .72);
-    backdrop-filter: blur(20px);
-    border-radius: 30px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .35);
-    z-index: 1001;
-    pointer-events: auto
-}
-
-.menu-box {
-    width: clamp(52px, 15vw, 78px);
-    height: clamp(52px, 15vw, 78px);
-    background: #fff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 22px;
-    transform: translateY(-38%);
-    transition: .15s ease;
-    cursor: pointer;
-    user-select: none
-}
-
-.menu-box:active {
-    transform: translateY(-34%) scale(.93);
-    background: #eef7fb
-}
-
-.menu-box i {
-    font-size: clamp(22px, 7vw, 34px);
-    color: #19c3e6
-}
-
-/* Global reset */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent
-}
-
-html, body {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    touch-action: manipulation
-}
-
-body {
-    position: fixed;
-    inset: 0;
-    background: #0b1220;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif
-}
-
-/* Map base */
-#map {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100dvh;
-    z-index: 1;
-    background: radial-gradient(circle at center, #f2f2f2 0%, #d9d9d9 55%, #cfcfcf 100%) !important
-}
-
-.leaflet-container {
-    background: transparent !important;
-    font-family: inherit;
-    touch-action: pan-x pan-y
-}
-
-.leaflet-image-layer {
-    filter: grayscale(20%) brightness(1.05) contrast(0.95);
-    opacity: .9
-}
-
-/* Controls */
-.leaflet-control-zoom {
-    border: none !important;
-    border-radius: 16px !important;
-    overflow: hidden;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, .25) !important
-}
-
-.leaflet-control-zoom a {
-    background: rgba(255, 255, 255, .95) !important;
-    color: #111 !important;
-    width: 34px !important;
-    height: 34px !important;
-    line-height: 34px !important;
-    font-size: 18px !important
-}
-
-/* Popups & markers */
-.leaflet-popup-content-wrapper {
-    border-radius: 18px
-}
-
-.leaflet-popup-content {
-    font-size: 14px;
-    margin: 10px 14px
-}
-
-.leaflet-marker-icon {
-    filter: drop-shadow(0 0 4px cyan) drop-shadow(0 0 10px rgba(0, 255, 255, .6))
-}
-
-/* UI overlays */
-.coords-display {
-    background: rgba(0, 0, 0, .72) !important;
-    color: #fff;
-    padding: 8px 12px !important;
-    border-radius: 12px;
-    font-size: 12px;
-    backdrop-filter: blur(10px)
-}
-
-.action-container {
-    position: absolute;
-    right: 0;
-    top: 25%;
-    transform: translateY(-25%) translateX(-25%);
-    z-index: 1000
-}
-
-.action-container button {
-    align-items: center;
-    background: #fff;
-    border: 3px solid transparent;
-    border-radius: 50%;
-    box-shadow: 0 clamp(2px, 0.6vw, 6px) clamp(6px, 1.5vw, 14px) rgba(0, 0, 0, .12);
-    height: 40px;
-    width: 40px
-}
-
-.action-container button:hover {
-    background: #f2f2f2;
-    cursor: pointer
-}
-
-/* Floor menu */
-.fmenu-container {
-    position: fixed;
-    left: 0;
-    top: 25%;
-    transform: translateY(-25%);
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    z-index: 1001
-}
-
-.floors-box {
-    all: unset;
-    width: clamp(46px, 12vw, 78px);
-    height: clamp(46px, 12vw, 78px);
-    background: #fff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: clamp(14px, 2vw, 22px);
-    cursor: pointer;
-    user-select: none;
-    font-size: clamp(12px, 4vw, 20px);
-    font-family: 'Courier New', Courier, monospace;
-    box-shadow: 0 clamp(2px, 0.6vw, 6px) clamp(6px, 1.5vw, 14px) rgba(0, 0, 0, .12);
-    transition: .15s ease
-}
-
-.floor-menu {
-    position: absolute;
-    top: calc(100% + 10px);
-    left: 0;
-    background: #fff;
-    border-radius: 14px;
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: fit-content;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, .15);
-    opacity: 0;
-    transform: translateY(-8px) scale(.98);
-    pointer-events: none;
-    transition: .15s ease
-}
-
-.floor-menu.show {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto
-}
-
-.floor-item {
-    all: unset;
-    padding: 10px 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-family: Arial, sans-serif;
-    font-size: 14px;
-    transition: .15s ease
-}
-
-.floor-item:hover {
-    background: #f2f2f2
-}
-
-.app-container {
-    position: absolute;
-    inset: 0;
-    z-index: 1000;
-    pointer-events: none
-}
-
-/* Bottom menu */
-.menu-container {
-    position: fixed;
-    left: 50%;
-    bottom: 14px;
-    transform: translateX(-50%);
-    width: calc(100% - 24px);
-    max-width: 520px;
-    padding: 14px 18px 22px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: clamp(8px, 3vw, 20px);
-    background: rgba(255, 255, 255, .72);
-    backdrop-filter: blur(20px);
-    border-radius: 30px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .35);
-    z-index: 1001;
-    pointer-events: auto
-}
-
-.menu-box {
-    width: clamp(52px, 15vw, 78px);
-    height: clamp(52px, 15vw, 78px);
-    background: #fff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 22px;
-    transform: translateY(-38%);
-    transition: .15s ease;
-    cursor: pointer;
-    user-select: none
-}
-
-.menu-box:active {
-    transform: translateY(-34%) scale(.93);
-    background: #eef7fb
-}
-
-.menu-box i {
-    font-size: clamp(22px, 7vw, 34px);
-    color: #19c3e6
-}
-
-@media (max-width:768px) {
     .menu-container {
         bottom: 10px;
-        padding: 12px 14px 18px;
-        border-radius: 24px
+        padding: 10px 14px 18px;
+        border-radius: 22px;
+        width: calc(100% - 20px);
     }
 
     .menu-box {
-        border-radius: 18px
+        border-radius: 16px;
     }
 }

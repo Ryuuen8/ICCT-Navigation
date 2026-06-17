@@ -495,6 +495,16 @@ body::-webkit-scrollbar {
     box-shadow: 0 12px 24px rgba(4, 20, 93, 0.18);
 }
 
+.announcement-detail-static {
+    margin-top: 6px;
+}
+
+.announcement-detail-static p {
+    color: #475569;
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
 .announcement-item {
     cursor: pointer;
 }
@@ -573,6 +583,77 @@ body::-webkit-scrollbar {
 .announcement-action:active,
 .announcement-close:active {
     transform: translateY(1px);
+}
+
+.bell-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.bell-wrapper i {
+    font-size: 1.3rem;
+    color: #0d8a4b;
+}
+
+/* 🔴 YouTube-style notification dot */
+.badge {
+    position: absolute;
+    top: -6px;
+    right: -10px;
+
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+
+    background: #e10600;
+    color: white;
+
+    font-size: 0.65rem;
+    font-weight: 800;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 999px;
+
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    border: 2px solid white;
+
+    transform: scale(1);
+}
+
+.notification-box {
+    position: relative;
+    /* IMPORTANT */
+}
+
+/* 🔴 top-right badge on the box */
+.notification-box .badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+
+    background: #e10600;
+    color: white;
+
+    font-size: 0.65rem;
+    font-weight: 800;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 999px;
+
+    border: 2px solid white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .hazard-form {

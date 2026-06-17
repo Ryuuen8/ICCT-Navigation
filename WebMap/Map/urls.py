@@ -9,16 +9,18 @@ router.register(r'announcements', views.AnnouncementViewSet)
 router.register(r'hazards', views.HazardReportViewSet)
 
 urlpatterns = [
-    path('api/', include(router.urls)),
     path('', views.announcement, name='main'),
     path('map/', views.index, name='mainmap'),
-    path('pathfind/', views.pathfind, name="pathfind"),
     path('emergency/', views.emergency, name="emergency"),
-    path('locate/', views.locate, name="locate"),
     path('admin-dashboard/', views.admin_dashboard, name="adminds"),
     path('admin-editor/', views.admin_management, name="map-editor"),
-    path('save-room/', views.save_room, name="save-room"),
     path('floormap/', views.floormap, name="floormap"),
+    
+    path('locate/', views.locate, name="locate"),
+    path('submit-report/', views.announcement, name="report"),
     path('search/', views.search, name="search"),
-    path('submit-report/', views.announcement, name="report")
+    path('save-room/', views.save_room, name="save-room"),
+    path('pathfind/', views.pathfind, name="pathfind"),
+    path('api/', include(router.urls)),
+
 ]

@@ -11,6 +11,9 @@ import networkx as nx
 import math
 from rest_framework import viewsets
 from .serializers import LocationSerializer, ConnectionSerializer, AnnouncementSerializer, HazardReportSerializer
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.http import require_http_methods
+from .utils.signer import validate_secure_token
 # Create your views here.
 
 class LocationViewSet(viewsets.ModelViewSet):
@@ -39,8 +42,10 @@ def announcement(request):
             return redirect('main')
     else:
         form = ReportForm()
+        
     items = Announcement.objects.select_related('to_location', 'from_location').all()
-    context = {'items': items, 'form':form}
+    context = {'items': items, 'form':form, 'items_count': items.count()}
+    
     return render(request, 'main.html', context)
 
 def floormap(request):
@@ -241,7 +246,6 @@ def pathfind(request):
         "segments": segments
     })
 
-@ensure_csrf_cookie
 def index(request):
     """Render the main index used by the map UI.
 
@@ -272,7 +276,12 @@ def index(request):
     return render(request, "index.html", {
         "locations": data,
     })
+
+def staff_check(user):
+    return user.is_staff
     
+@login_required(login_url="admin:login")
+@user_passes_test(staff_check)
 def admin_dashboard(request):
     locations  = Location.objects.all()
     data = [
@@ -294,6 +303,8 @@ def admin_dashboard(request):
             weight=conn.cost)
     return render(request, 'admin/admin-dashboard.html',{"locations": data})
 
+@login_required(login_url="admin:login")
+@user_passes_test(staff_check)
 def admin_management(request):
     locations  = Location.objects.all()
     data = [
@@ -317,6 +328,8 @@ def admin_management(request):
 
 
 @csrf_exempt
+@login_required
+@user_passes_test(staff_check)
 def save_room(request):
     """Save room polygons from the map editor.
 

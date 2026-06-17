@@ -24,8 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-e^=)mycw4uf88)3^ujjqpm6kiflc8_4m$*-ecoln)1&q4n417)'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
+DEBUG = False
 ALLOWED_HOSTS = ["*"
 ]
 
@@ -49,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'Map.apps.MapConfig',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -110,6 +110,13 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+
+}   
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

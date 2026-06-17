@@ -66,7 +66,8 @@
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <span>Report Hazard</span>
                     </div>
-                    <div class="quick-item" id="announcement-btn">
+                    <div class="quick-item notification-box" id="announcement-btn">
+                        {% if items_count != 0 %}<span id="announcement-count" class="badge">{{ items_count }}</span>{% endif %}
                         <i class="fa-solid fa-bell"></i>
                         <span>Announcement</span>
                     </div>
@@ -257,6 +258,165 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+<!-- ASSEMBLY POINT POPUP -->
+<div id="assemblyPopup" class="announcement-overlay" aria-hidden="true">
+    <div class="announcement-panel" role="dialog" aria-modal="true">
+        <div class="announcement-header">
+            <div class="announcement-badge">
+                <i class="fa-solid fa-people-group"></i>
+                <span>Assembly Point</span>
+            </div>
+            <button class="announcement-close" id="closeAssemblyBtn" type="button">×</button>
+        </div>
+        <div class="announcement-content">
+            <p class="announcement-eyebrow">Emergency</p>
+            <h2>Assembly Points</h2>
+            <p class="announcement-text">In case of emergency, proceed calmly to the nearest assembly point.</p>
+            <div class="announcement-list">
+                <div class="announcement-item">
+                    <span class="announcement-dot"></span>
+                    <div class="announcement-item-content">
+                        <h3>Main Quadrangle</h3>
+                        <div class="announcement-detail-static">
+                            <p>Ground floor — front of the building near the main entrance.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="announcement-item">
+                    <span class="announcement-dot"></span>
+                    <div class="announcement-item-content">
+                        <h3>Parking Area</h3>
+                        <div class="announcement-detail-static">
+                            <p>Side exit — proceed to the open parking lot on the east side.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="announcement-item">
+                    <span class="announcement-dot"></span>
+                    <div class="announcement-item-content">
+                        <h3>Back Court</h3>
+                        <div class="announcement-detail-static">
+                            <p>Rear exit — basketball court behind the main building.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="announcement-footer">
+            <button class="announcement-action" id="assemblyOkBtn" type="button">Got it</button>
+        </div>
+    </div>
+</div>
+<!-- SAFETY TIPS POPUP -->
+<div id="safetyPopup" class="announcement-overlay" aria-hidden="true">
+    <div class="announcement-panel" role="dialog" aria-modal="true">
+        <div class="announcement-header">
+            <div class="announcement-badge">
+                <i class="fa-solid fa-shield-heart"></i>
+                <span>Safety Tips</span>
+            </div>
+            <button class="announcement-close" id="closeSafetyBtn" type="button">×</button>
+        </div>
+        <div class="announcement-content">
+            <p class="announcement-eyebrow">Stay Safe</p>
+            <h2>Campus Safety Tips</h2>
+            <p class="announcement-text">Follow these guidelines to keep yourself and others safe inside the campus.</p>
+            <div class="announcement-list">
+                <div class="announcement-item">
+                    <span class="announcement-dot"></span>
+                    <div class="announcement-item-content">
+                        <h3>Keep Hallways Clear</h3>
+                        <div class="announcement-detail-static">
+                            <p>Do not block corridors, stairways, or emergency exits at any time.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="announcement-item">
+                    <span class="announcement-dot"></span>
+                    <div class="announcement-item-content">
+                        <h3>Follow Exit Signs</h3>
+                        <div class="announcement-detail-static">
+                            <p>In emergencies, follow posted directional signs and proceed to the nearest exit calmly.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="announcement-item">
+                    <span class="announcement-dot"></span>
+                    <div class="announcement-item-content">
+                        <h3>No Running Indoors</h3>
+                        <div class="announcement-detail-static">
+                            <p>Walk inside the building to avoid accidents especially on stairways.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="announcement-item">
+                    <span class="announcement-dot"></span>
+                    <div class="announcement-item-content">
+                        <h3>Report Suspicious Activity</h3>
+                        <div class="announcement-detail-static">
+                            <p>Immediately report anything unusual to the nearest security personnel.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="announcement-footer">
+            <button class="announcement-action" id="safetyOkBtn" type="button">Got it</button>
+        </div>
+    </div>
+</div>
+<!-- CONTACT SECURITY POPUP -->
+<div id="contactPopup" class="announcement-overlay" aria-hidden="true">
+    <div class="announcement-panel" role="dialog" aria-modal="true">
+        <div class="announcement-header">
+            <div class="announcement-badge">
+                <i class="fa-solid fa-phone"></i>
+                <span>Contact Security</span>
+            </div>
+            <button class="announcement-close" id="closeContactBtn" type="button">×</button>
+        </div>
+        <div class="announcement-content">
+            <p class="announcement-eyebrow">Security</p>
+            <h2>Contact Security</h2>
+            <p class="announcement-text">Reach campus security immediately in case of emergency or concern.</p>
+            <div class="announcement-list">
+                <div class="announcement-item">
+                    <span class="announcement-dot"></span>
+                    <div class="announcement-item-content">
+                        <h3>Main Security Office</h3>
+                        <div class="announcement-detail-static">
+                            <p>Ground Floor — near the main entrance</p>
+                            <a href="tel:+6300000000"
+                               class="ann-btn ann-btn-navigate"
+                               style="margin-top:10px;
+                                      text-decoration:none">
+                                <i class="fa-solid fa-phone"></i> Call Now
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="announcement-item">
+                    <span class="announcement-dot"></span>
+                    <div class="announcement-item-content">
+                        <h3>Emergency Hotline</h3>
+                        <div class="announcement-detail-static">
+                            <p>Available 24/7 for urgent concerns</p>
+                            <a href="tel:+6300000001"
+                               class="ann-btn ann-btn-navigate"
+                               style="margin-top:10px;
+                                      text-decoration:none">
+                                <i class="fa-solid fa-phone"></i> Call Now
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="announcement-footer">
+            <button class="announcement-action" id="contactOkBtn" type="button">Got it</button>
         </div>
     </div>
 </div>

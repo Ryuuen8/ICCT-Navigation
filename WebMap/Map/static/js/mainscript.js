@@ -22,6 +22,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeHazardBtn = document.getElementById('closeHazardBtn');
     const hazardCancelBtn = document.getElementById('hazardCancelBtn');
     const hazardSubmitBtn = document.getElementById('hazardSubmitBtn');
+    const assemblyBtn = document.querySelector('.quick-item:has(.fa-people-group)');
+    const assemblyPopup = document.getElementById('assemblyPopup');
+    const closeAssemblyBtn = document.getElementById('closeAssemblyBtn');
+    const assemblyOkBtn = document.getElementById('assemblyOkBtn');
+    const contactBtn = document.querySelector('.quick-item:has(.fa-phone)');
+    const contactPopup = document.getElementById('contactPopup');
+    const closeContactBtn = document.getElementById('closeContactBtn');
+    const contactOkBtn = document.getElementById('contactOkBtn');
+    const safetyBtn = document.querySelector('.quick-item:has(.fa-shield-heart)');
+    const safetyPopup = document.getElementById('safetyPopup');
+    const closeSafetyBtn = document.getElementById('closeSafetyBtn');
+    const safetyOkBtn = document.getElementById('safetyOkBtn');
+
     let activeSearchField = 'from';
     let fromSelected = '';
     let toSelected = '';
@@ -283,4 +296,53 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = `/map/?x=${encodeURIComponent(locationX)}&y=${encodeURIComponent(locationY)}&floor=${encodeURIComponent(locationFloor)}&name=${encodeURIComponent(locationName)}`;
         });
     });
+    assemblyBtn?.addEventListener('click', () => {
+        assemblyPopup.classList.add('show');
+        assemblyPopup.setAttribute('aria-hidden', 'false');
+    });
+    [closeAssemblyBtn, assemblyOkBtn].forEach(btn => {
+        btn?.addEventListener('click', () => {
+            assemblyPopup.classList.remove('show');
+            assemblyPopup.setAttribute('aria-hidden', 'true');
+        });
+    });
+    assemblyPopup?.addEventListener('click', e => {
+        if (e.target === assemblyPopup) {
+            assemblyPopup.classList.remove('show');
+            assemblyPopup.setAttribute('aria-hidden', 'true');
+        }
+    });
+    safetyBtn?.addEventListener('click', () => {
+        safetyPopup.classList.add('show');
+        safetyPopup.setAttribute('aria-hidden', 'false');
+    });
+    [closeSafetyBtn, safetyOkBtn].forEach(btn => {
+        btn?.addEventListener('click', () => {
+            safetyPopup.classList.remove('show');
+            safetyPopup.setAttribute('aria-hidden', 'true');
+        });
+    });
+    safetyPopup?.addEventListener('click', e => {
+        if (e.target === safetyPopup) {
+            safetyPopup.classList.remove('show');
+            safetyPopup.setAttribute('aria-hidden', 'true');
+        }
+    });
+    contactBtn?.addEventListener('click', () => {
+        contactPopup.classList.add('show');
+        contactPopup.setAttribute('aria-hidden', 'false');
+    });
+    [closeContactBtn, contactOkBtn].forEach(btn => {
+        btn?.addEventListener('click', () => {
+            contactPopup.classList.remove('show');
+            contactPopup.setAttribute('aria-hidden', 'true');
+        });
+    });
+    contactPopup?.addEventListener('click', e => {
+        if (e.target === contactPopup) {
+            contactPopup.classList.remove('show');
+            contactPopup.setAttribute('aria-hidden', 'true');
+        }
+    });
 });
+
