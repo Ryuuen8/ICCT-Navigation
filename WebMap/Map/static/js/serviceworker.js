@@ -1,137 +1,212 @@
-const CACHE_NAME = 'icct-navigation-v1';
-const urlsToCache = [
-    '/',
-    '/offline/',
-    '/static/css/main.css',
-    '/static/css/emergency.css',
-    '/static/css/floor-maps.css',
-    '/static/js/mainscript.js',
-    '/static/images/icct-logo-square.png',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css',
-    'https://unpkg.com/leaflet@1.6.0/dist/leaflet.css',
-    'https://unpkg.com/leaflet@1.6.0/dist/leaflet.js',
+const CACHE_VERSION = "webmap-pwa-v2";
+const STATIC_CACHE = `${CACHE_VERSION}-static`;
+const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
+const OFFLINE_URL = "/offline/";
+
+const APP_PAGES = [
+    "/",
+    "/map/",
+    "/emergency/",
+    "/floormap/",
+    OFFLINE_URL,
 ];
 
-// Install Service Worker
-self.addEventListener('install', event => {
+const APP_STATIC = [
+    "/static/css/main.css",
+    "/static/css/emergency.css",
+    "/static/css/floor-maps.css",
+    "/static/css/style.css",
+    "/static/js/mainscript.js",
+    "/static/js/script.js",
+    "/static/js/map.js",
+    "/static/images/Exit_icon.svg",
+    "/static/images/Exit_icon.svg",
+    "/static/images/first-floor.svg",
+    "/static/images/second-floor.svg",
+    "/static/images/third-floor.svg",
+    "/static/images/fourth-floor.svg",
+    "/static/images/fifth-floor.svg",
+];
+
+const CDN_ASSETS = [
+    "https://unpkg.com/leaflet@1.6.0/dist/leaflet.css",
+    "https://unpkg.com/leaflet@1.6.0/dist/leaflet.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css",
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css",
+    "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js",
+    "https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.min.js",
+    "https://unpkg.com/@elfalem/leaflet-curve",
+];
+
+const API_CACHE_PREFIXES = [
+    "/api/locations/",
+    "/api/connections/",
+    "/api/announcements/",
+    "/api/hazards/",
+];
+
+const CDN_HOSTS = [
+    "cdnjs.cloudflare.com",
+    "unpkg.com",
+    "cdn.jsdelivr.net",
+];
+
+function isNavigationRequest(request) {
+    return request.mode === "navigate" ||
+        (request.method === "GET" && request.headers.get("accept")?.includes("text/html"));
+}
+
+function isStaticAsset(url) {
+    return url.pathname.startsWith("/static/") || url.pathname.startsWith("/media/");
+}
+
+function isApiGet(request, url) {
+    return request.method === "GET" &&
+        API_CACHE_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
+}
+
+function isCdnRequest(url) {
+    return CDN_HOSTS.some((host) => url.hostname.endsWith(host));
+}
+
+async function cacheFirst(request, cacheName) {
+    const cached = await caches.match(request);
+    if (cached) {
+        return cached;
+    }
+
+    const response = await fetch(request);
+    if (response.ok) {
+        const cache = await caches.open(cacheName);
+        cache.put(request, response.clone());
+    }
+    return response;
+}
+
+async function networkFirst(request, cacheName, fallbackUrl) {
+    try {
+        const response = await fetch(request);
+        if (response.ok) {
+            const cache = await caches.open(cacheName);
+            cache.put(request, response.clone());
+        }
+        return response;
+    } catch (error) {
+        const cached = await caches.match(request);
+        if (cached) {
+            return cached;
+        }
+
+        if (fallbackUrl) {
+            const fallback = await caches.match(fallbackUrl);
+            if (fallback) {
+                return fallback;
+            }
+        }
+
+        throw error;
+    }
+}
+
+async function staleWhileRevalidate(request, cacheName) {
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(request);
+
+    const networkPromise = fetch(request)
+        .then((response) => {
+            if (response.ok) {
+                cache.put(request, response.clone());
+            }
+            return response;
+        })
+        .catch(() => null);
+
+    return cached || networkPromise || fetch(request);
+}
+
+self.addEventListener("install", (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => {
-                return cache.addAll(urlsToCache);
-            })
-            .then(() => self.skipWaiting())
+        Promise.all([
+            caches.open(STATIC_CACHE).then((cache) =>
+                cache.addAll([...APP_PAGES, ...APP_STATIC].filter(Boolean))
+            ),
+            caches.open(DYNAMIC_CACHE).then((cache) =>
+                cache.addAll(CDN_ASSETS).catch(() => undefined)
+            ),
+        ]).then(() => self.skipWaiting())
     );
 });
 
-// Activate Service Worker
-self.addEventListener('activate', event => {
+self.addEventListener("activate", (event) => {
     event.waitUntil(
-        caches.keys().then(cacheNames => {
-            return Promise.all(
-                cacheNames.map(cacheName => {
-                    if (cacheName !== CACHE_NAME) {
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        }).then(() => self.clients.claim())
+        caches.keys().then((keys) =>
+            Promise.all(
+                keys
+                    .filter((key) => !key.startsWith(CACHE_VERSION))
+                    .map((key) => caches.delete(key))
+            )
+        ).then(() => self.clients.claim())
     );
 });
 
-// Fetch event - Network first, fallback to cache
-self.addEventListener('fetch', event => {
+self.addEventListener("message", (event) => {
+    if (event.data?.type === "SKIP_WAITING") {
+        self.skipWaiting();
+    }
+});
+
+self.addEventListener("fetch", (event) => {
     const { request } = event;
 
-    // Skip non-GET requests
-    if (request.method !== 'GET') {
+    if (request.method !== "GET" && request.method !== "POST") {
         return;
     }
 
-    // API requests - Network first
-    if (request.url.includes('/api/') || request.url.includes('/locate/') || request.url.includes('/search/')) {
+    const url = new URL(request.url);
+
+    if (url.origin !== self.location.origin && !isCdnRequest(url)) {
+        return;
+    }
+
+    if (request.method === "POST") {
         event.respondWith(
-            fetch(request)
-                .then(response => {
-                    // Cache successful responses
-                    if (response.status === 200) {
-                        const clonedResponse = response.clone();
-                        caches.open(CACHE_NAME).then(cache => {
-                            cache.put(request, clonedResponse);
-                        });
+            fetch(request).catch(() =>
+                new Response(
+                    JSON.stringify({
+                        error: "You are offline. This action requires an internet connection.",
+                        offline: true,
+                    }),
+                    {
+                        status: 503,
+                        headers: { "Content-Type": "application/json" },
                     }
-                    return response;
-                })
-                .catch(() => {
-                    // Fallback to cache if offline
-                    return caches.match(request)
-                        .then(response => response || new Response('Offline - Data unavailable', { status: 503 }));
-                })
+                )
+            )
         );
         return;
     }
 
-    // Static assets - Cache first
-    if (request.url.includes('/static/')) {
-        event.respondWith(
-            caches.match(request)
-                .then(response => response || fetch(request))
-        );
+    if (isNavigationRequest(request)) {
+        event.respondWith(networkFirst(request, DYNAMIC_CACHE, OFFLINE_URL));
         return;
     }
 
-    // Pages - Network first, fallback to cache
+    if (isApiGet(request, url)) {
+        event.respondWith(networkFirst(request, DYNAMIC_CACHE));
+        return;
+    }
+
+    if (isStaticAsset(url)) {
+        event.respondWith(cacheFirst(request, STATIC_CACHE));
+        return;
+    }
+
+    if (isCdnRequest(url)) {
+        event.respondWith(staleWhileRevalidate(request, DYNAMIC_CACHE));
+        return;
+    }
+
     event.respondWith(
-        fetch(request)
-            .then(response => {
-                if (response.status === 200) {
-                    const clonedResponse = response.clone();
-                    caches.open(CACHE_NAME).then(cache => {
-                        cache.put(request, clonedResponse);
-                    });
-                }
-                return response;
-            })
-            .catch(() => {
-                return caches.match(request)
-                    .then(response => response || caches.match('/offline/'));
-            })
+        fetch(request).catch(() => caches.match(request))
     );
 });
-
-// Background sync for hazard reports
-self.addEventListener('sync', event => {
-    if (event.tag === 'sync-hazard-reports') {
-        event.waitUntil(syncHazardReports());
-    }
-});
-
-function syncHazardReports() {
-    return new Promise((resolve, reject) => {
-        const dbRequest = indexedDB.open('icct_navigation');
-
-        dbRequest.onsuccess = () => {
-            const db = dbRequest.result;
-            const transaction = db.transaction(['pending_reports'], 'readonly');
-            const store = transaction.objectStore('pending_reports');
-            const getAllRequest = store.getAll();
-
-            getAllRequest.onsuccess = () => {
-                const reports = getAllRequest.result;
-                Promise.all(reports.map(report =>
-                    fetch('/submit-report/', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(report)
-                    })
-                ))
-                    .then(() => {
-                        // Clear pending reports after sync
-                        const deleteTransaction = db.transaction(['pending_reports'], 'readwrite');
-                        deleteTransaction.objectStore('pending_reports').clear();
-                        resolve();
-                    })
-                    .catch(reject);
-            };
-        };
-    });
-}

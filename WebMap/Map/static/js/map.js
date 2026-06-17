@@ -333,8 +333,38 @@ function drawPath(pathData) {
     });
 }
 
+
+
 function requestPath(start, end) {
+    if (!navigator.onLine) {
+        const graph = window.OfflinePathfinder?.loadGraphFromPage?.();
+
+        if (graph) {
+            const result = window.OfflinePathfinder.findPath(
+                graph.locations,
+                graph.connections,
+                start,
+                end
+            );
+
+            if (result.error) {
+                alert(`❌ ${result.error}`);
+                return;
+            }
+
+            console.log('PATH (offline):', result.path);
+            drawPath(result);
+            alert(`✅ Path found from ${start} to ${end}!`);
+            return;
+        }
+    }
+
     const csrftoken = getCSRFToken();
+
+    if (!csrftoken) {
+        console.error('CSRF token missing — request blocked');
+        return;
+    }
 
     if (!csrftoken) {
         console.error('CSRF token missing — request blocked');
