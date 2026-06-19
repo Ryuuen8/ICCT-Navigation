@@ -72,14 +72,14 @@ function isCdnRequest(url) {
 }
 
 async function cacheFirst(request, cacheName) {
-    const cached = await caches.match(request);
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(request); // scoped to THIS cache only
     if (cached) {
         return cached;
     }
 
-    const response = await fetch(request);
+    const response = await fetch(request, { cache: "reload" }); // also bypass HTTP cache here
     if (response.ok) {
-        const cache = await caches.open(cacheName);
         cache.put(request, response.clone());
     }
     return response;
