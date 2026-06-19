@@ -1,42 +1,49 @@
 // MAP SETUP
 console.log("MAP JS LOADED");
 console.log("navbtn at load:", document.getElementById("navbtn"));
+
+// --- Use the floor plan's REAL pixel dimensions, not an arbitrary square ---
+// testf.svg is 790 x 615 — if other floor SVGs differ in size, each
+// imageOverlay needs its own bounds (ask me and I'll wire that up).
+const IMAGE_WIDTH = 790;
+const IMAGE_HEIGHT = 615;
+const MAP_PADDING = window.innerWidth < 768 ? [40, 40] : [20, 20];
+
+// In L.CRS.Simple, bounds are [[y_min, x_min], [y_max, x_max]]
+const bounds = [[0, 0], [IMAGE_HEIGHT, IMAGE_WIDTH]];
+
 var map = L.map('map', {
     crs: L.CRS.Simple,
-    minZoom: -2,
-    maxZoom: 3,
     zoomSnap: 0.25,
     zoomDelta: 0.25,
     wheelPxPerZoomLevel: 120,
     touchZoom: true,
     tap: true,
-    bounceAtZoomLimits: false
+    tapTolerance: 15,
+    doubleClickZoom: true,
+    bounceAtZoomLimits: false,
+
+    maxBounds: bounds,
+    maxBoundsViscosity: 1.0
 });
 
-const bounds = [[0, 0], [1000, 1000]];
-
 const floors = {
-    1: {
-        image: L.imageOverlay('/static/images/first-floor.svg', bounds),
-        layer: L.layerGroup()
-    },
-    2: {
-        image: L.imageOverlay('/static/images/second-floor.svg', bounds),
-        layer: L.layerGroup()
-    },
-    3: {
-        image: L.imageOverlay('/static/images/third-floor.svg', bounds),
-        layer: L.layerGroup()
-    },
-    4: {
-        image: L.imageOverlay('/static/images/fourth-floor.svg', bounds),
-        layer: L.layerGroup()
-    },
-    5: {
-        image: L.imageOverlay('/static/images/fifth-floor.svg', bounds),
-        layer: L.layerGroup()
-    }
+    1: { image: L.imageOverlay('/static/images/testf.svg', bounds), layer: L.layerGroup() },
+    2: { image: L.imageOverlay('/static/images/second-floor.svg', bounds), layer: L.layerGroup() },
+    3: { image: L.imageOverlay('/static/images/third-floor.svg', bounds), layer: L.layerGroup() },
+    4: { image: L.imageOverlay('/static/images/fourth-floor.svg', bounds), layer: L.layerGroup() },
+    5: { image: L.imageOverlay('/static/images/fifth-floor.svg', bounds), layer: L.layerGroup() }
 };
+
+// --- ONE function that computes "zoomed all the way out shows the whole
+//     map" zoom level, using the same padding everywhere. This is the
+//     ONLY place minZoom is computed. ---
+function computeMinZoom() {
+    return map.getBoundsZoom(bounds, false, L.point(MAP_PADDING[0], MAP_PADDING[1]));
+}
+
+map.setMinZoom(computeMinZoom());
+map.setMaxZoom(3);
 
 function normalizeFloorId(value) {
     if (value === null || value === undefined) {
@@ -56,6 +63,44 @@ function normalizeFloorId(value) {
 let currentFloor = normalizeFloorId(
     new URLSearchParams(window.location.search).get('floor')
 ) ?? 1;
+
+// --- ONE place the initial view is set: bottom-left corner, zoomed in
+//     past the minimum. Nothing after this calls fitBounds()/setView()
+//     again, so this won't get overridden. ---
+const initialZoom = computeMinZoom() + 1;
+map.setView([0, 0], initialZoom);
+
+// --- ONE resize handler, debounced. Recomputes minZoom only — does NOT
+//     call fitBounds/setView, so it won't yank the user's current view. ---
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        map.invalidateSize();
+        map.setMinZoom(computeMinZoom());
+    }, 150);
+});
+window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+        map.invalidateSize();
+        map.setMinZoom(computeMinZoom());
+    }, 200);
+});
+
+function initFloors() {
+    Object.keys(floors).forEach((key) => {
+        const f = floors[key];
+        f.image.addTo(map);
+        f.layer.addTo(map);
+        if (parseInt(key) !== currentFloor) {
+            map.removeLayer(f.image);
+            map.removeLayer(f.layer);
+        }
+    });
+}
+
+initFloors();
+
 let currentPath = null;
 let selected = [];
 let currentMarker = null;
@@ -89,43 +134,6 @@ function setPathfindingMode(active) {
         }
     }
 }
-
-function initFloors() {
-    Object.keys(floors).forEach((key) => {
-        const f = floors[key];
-
-        f.image.addTo(map);
-        f.layer.addTo(map);
-
-        if (parseInt(key) !== currentFloor) {
-            map.removeLayer(f.image);
-            map.removeLayer(f.layer);
-        }
-    });
-}
-
-initFloors();
-
-map.fitBounds(bounds, {
-    padding: window.innerWidth < 768 ? [40, 40] : [20, 20]
-});
-
-map.setMaxBounds(bounds);
-map.options.maxBoundsViscosity = 1.0;
-
-let resizeTimer;
-
-window.addEventListener("resize", () => {
-    clearTimeout(resizeTimer);
-
-    resizeTimer = setTimeout(() => {
-        map.invalidateSize();
-
-        map.fitBounds(bounds, {
-            padding: window.innerWidth < 768 ? [40, 40] : [20, 20]
-        });
-    }, 150);
-});
 
 var coordControl = L.control({ position: 'bottomleft' });
 
@@ -210,9 +218,6 @@ function handleScannedLocation() {
         floors[location.floor].layer.addLayer(marker);
         marker.openPopup();
 
-        // Center map on the scanned location
-        //map.setView([location.y, location.x], 2);
-
         console.log('Scanned location displayed:', location);
     } catch (error) {
         console.error('Error handling scanned location:', error);
@@ -232,26 +237,26 @@ function clearCurrentPath() {
 
 function splitPathIntoFloorSegments(pathCoords) {
     const segments = [];
-    let currentFloor = null;
+    let segFloor = null;
     let currentSegment = [];
 
     pathCoords.forEach((coord) => {
         const [lat, lng, floor] = coord;
 
-        if (currentFloor === null) {
-            currentFloor = floor;
+        if (segFloor === null) {
+            segFloor = floor;
             currentSegment = [[lat, lng]];
             return;
         }
 
-        if (floor !== currentFloor) {
+        if (floor !== segFloor) {
             if (currentSegment.length >= 2) {
                 segments.push({
-                    floor: currentFloor,
+                    floor: segFloor,
                     coords: currentSegment
                 });
             }
-            currentFloor = floor;
+            segFloor = floor;
             currentSegment = [[lat, lng]];
         } else {
             currentSegment.push([lat, lng]);
@@ -260,7 +265,7 @@ function splitPathIntoFloorSegments(pathCoords) {
 
     if (currentSegment.length >= 2) {
         segments.push({
-            floor: currentFloor,
+            floor: segFloor,
             coords: currentSegment
         });
     }
@@ -284,10 +289,6 @@ function getFirstPathFloor(pathData) {
     return null;
 }
 
-// Helper: split returned path coordinates into contiguous floor segments
-
-
-
 function drawPath(pathData) {
     if (!pathData) return;
 
@@ -302,7 +303,6 @@ function drawPath(pathData) {
 
     if (Array.isArray(pathData)) {
         if (pathData.length === 0) return;
-        // Full path with floor as third coordinate
         if (Array.isArray(pathData[0]) && pathData[0].length >= 3) {
             segments = splitPathIntoFloorSegments(pathData);
         } else {
@@ -332,8 +332,6 @@ function drawPath(pathData) {
         }
     });
 }
-
-
 
 function findOfflinePath(start, end) {
     const graph = window.OfflinePathfinder?.loadGraphFromPage?.();
@@ -395,11 +393,6 @@ function requestPath(start, end) {
         return;
     }
 
-    if (!csrftoken) {
-        console.error('CSRF token missing — request blocked');
-        return;
-    }
-
     fetch('/pathfind/', {
         method: 'POST',
         credentials: 'same-origin',
@@ -440,9 +433,6 @@ function requestPath(start, end) {
         });
 }
 
-// Draws the path layers for the current floor and stores them in
-// `currentPathLayers` so they can be cleared or toggled when switching floors.
-
 drawPath(path);
 
 // Check if a QR code location was scanned and display it
@@ -480,7 +470,6 @@ if (compassBtn) {
     console.error("Compass button not found");
 }
 
-
 // LOCATION CLICK HANDLER WITH MODE CHECK
 locations.forEach(function (loc) {
     const polygon = L.polygon(loc.coordinates, {
@@ -493,13 +482,9 @@ locations.forEach(function (loc) {
     polygon.on("click", function () {
         if (!pathfindingMode) {
             console.log("Pathfinding mode disabled. Click the compass button first!");
-            return; // EXIT - don't proceed
+            return;
         }
-        // When active: collect the clicked room name. After two clicks a
-        // POST is sent to the server to compute a route. The client will
-        // then draw the route and automatically deactivate the nav button
-        // so the user must re-enable pathfinding for another route.
-        // Only proceed if mode is active
+
         console.log("CLICKED (pathfinding mode):", loc.room_name);
 
         selected.push(loc.room_name);
@@ -513,7 +498,6 @@ locations.forEach(function (loc) {
             return;
         }
 
-        // Show feedback for first selection
         if (selected.length === 1) {
             polygon.bindPopup(`
                 BACOOR
@@ -521,7 +505,6 @@ locations.forEach(function (loc) {
             setTimeout(() => polygon.closePopup(), 1500);
         }
 
-        // WAIT UNTIL TWO SELECTIONS
         if (selected.length === 2) {
             console.log("Sending pathfind request...");
 
@@ -539,7 +522,6 @@ function switchFloor(floor) {
 
     const previousFloor = currentFloor;
 
-    // remove current
     if (floors[previousFloor]) {
         map.removeLayer(floors[previousFloor].image);
         map.removeLayer(floors[previousFloor].layer);
@@ -552,7 +534,6 @@ function switchFloor(floor) {
 
     currentFloor = floor;
 
-    // add new
     map.addLayer(floors[currentFloor].image);
     map.addLayer(floors[currentFloor].layer);
 
@@ -574,23 +555,23 @@ document.querySelectorAll(".floor-item").forEach((btn) => {
 document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('searchInput');
     const suggestionsList = document.getElementById('suggestionsList');
-    let locations = [];
+    let searchLocationsCache = [];
     let searchTimer;
 
-    // Load locations from your Django JSON script tag
     function loadLocations() {
         try {
             const locationsElem = document.getElementById('locations-data');
             if (locationsElem && locationsElem.textContent) {
                 const parsed = JSON.parse(locationsElem.textContent);
-                locations = Array.isArray(parsed) ? parsed : [];
-                console.log(`✅ Loaded ${locations.length} locations for search`);
+                searchLocationsCache = Array.isArray(parsed) ? parsed : [];
+                console.log(`✅ Loaded ${searchLocationsCache.length} locations for search`);
             }
         } catch (error) {
             console.error('Failed to load locations:', error);
-            locations = [];
+            searchLocationsCache = [];
         }
     }
+
     function removeCurrentMarker() {
         if (currentMarkerTimeout) {
             clearTimeout(currentMarkerTimeout);
@@ -598,18 +579,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         searchMarkerLayer.clearLayers();
-
-        if (currentMarker) {
-            console.log('Previous marker removed');
-        }
-
         currentMarker = null;
     }
-    // Search and display suggestions
+
     function searchLocations(query) {
         if (!query || query.length < 2) return [];
 
-        return locations.filter(loc =>
+        return searchLocationsCache.filter(loc =>
             loc.room_name.toLowerCase().includes(query.toLowerCase())
         ).slice(0, 10);
     }
@@ -642,17 +618,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 searchInput.value = loc.room_name;
                 suggestionsList.classList.remove('show');
 
-                // Trigger map navigation
                 if (typeof window.switchFloor === 'function') {
                     window.switchFloor(loc.floor);
 
-                    // Wait for floor to switch before adding marker
                     setTimeout(() => {
-                        // Check if coordinates exist
                         if (loc.y_coordinate && loc.x_coordinate) {
                             removeCurrentMarker();
 
-                            // Create marker
                             currentMarker = L.circleMarker([loc.y_coordinate, loc.x_coordinate], {
                                 radius: 15,
                                 fillColor: '#FF6B6B',
@@ -665,7 +637,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
                             searchMarkerLayer.addLayer(currentMarker);
 
-                            // Add popup to marker
                             currentMarker.bindPopup(`
                                 <div style="text-align: center; padding: 10px;">
                                     <strong>📍 ${loc.room_name}</strong><br>
@@ -673,8 +644,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <small>Search result</small>
                                 </div>
                             `).openPopup();
-
-                            // Center map on marker
 
                             const markerToClear = currentMarker;
                             currentMarkerTimeout = setTimeout(() => {
@@ -694,7 +663,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     }, 300);
                 } else {
-                    // Fallback if switchFloor isn't available
                     if (typeof window.findAndZoomToLocation === 'function') {
                         window.findAndZoomToLocation(loc.room_name);
                     }
@@ -707,7 +675,6 @@ document.addEventListener('DOMContentLoaded', function () {
         suggestionsList.classList.add('show');
     }
 
-    // Event listeners
     searchInput.addEventListener('input', function (e) {
         clearTimeout(searchTimer);
         const query = this.value.trim();
@@ -723,7 +690,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 250);
     });
 
-    // Close suggestions on outside click
     document.addEventListener('click', function (e) {
         if (!searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
             suggestionsList.classList.remove('show');
@@ -738,7 +704,6 @@ function urlOutside() {
 
     const start = params.get("start");
     const end = params.get("end");
-
 
     if (start && end) {
         requestPath(start, end);
