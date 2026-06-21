@@ -67,7 +67,8 @@
             let qrScanner = null;
             let isScanning = false;
 
-            function processScannedUrl(scannedUrl) {
+            // Store scanned location WITHOUT redirecting
+            function storeScannedLocation(scannedUrl) {
                 try {
                     if (scannedUrl.includes('/locate/') || scannedUrl.includes('/map/locate/')) {
                         const url = new URL(scannedUrl);
@@ -80,37 +81,83 @@
                             x: parseFloat(x),
                             y: parseFloat(y),
                             floor: parseInt(floor),
-                            name: name
+                            name: name || 'Scanned Location'
                         };
 
-                        // 🔁 ALWAYS overwrite previous scan (your "cache")
+                        // Store in sessionStorage
                         sessionStorage.setItem('scannedLocation', JSON.stringify(scanned));
 
-                        // 🚨 Emergency flow bridge (if triggered before scan)
-                        const pendingEmergency = sessionStorage.getItem('pendingEmergencyRoute');
-                        const pendingDestination = sessionStorage.getItem('pendingNavigationDestination');
+                        console.log('📍 Scanned location stored:', scanned);
 
-                        if (pendingEmergency === 'true' && pendingDestination === 'NEAREST_EMERGENCY') {
-                            sessionStorage.removeItem('pendingEmergencyRoute');
-                            sessionStorage.removeItem('pendingNavigationDestination');
+                        // Show a success message
+                        showToast(`📍 Location "${scanned.name}" scanned! Go to map to see it.`);
 
-                            window.location.href =
-                                `/map/?start=${encodeURIComponent(name)}&end=NEAREST_EMERGENCY&emergency=true`;
-                            return;
-                        }
-
-                        // normal flow
-                        window.location.href = '/map/';
+                        return true;
                     } else {
+                        console.log('Not a location QR code, opening URL:', scannedUrl);
+                        // If it's a regular URL, open it
                         window.location.href = scannedUrl;
+                        return false;
                     }
                 } catch (err) {
-                    console.error('processScannedUrl error:', err);
+                    console.error('storeScannedLocation error:', err);
                     alert('Invalid QR data');
+                    return false;
                 }
             }
 
-            // MAIN SCAN FUNCTION - This is what gets called when you click the scan button
+            // Toast notification function
+            function showToast(message) {
+                const existingToast = document.getElementById('scanner-toast');
+                if (existingToast) existingToast.remove();
+
+                const toast = document.createElement('div');
+                toast.id = 'scanner-toast';
+                toast.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <i class="fa-solid fa-qrcode" style="color:#00E5FF;font-size:20px;"></i>
+                        <span style="color:white;font-size:14px;">${message}</span>
+                    </div>
+                `;
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 100px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0,0,0,0.9);
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 12px;
+                    border: 1px solid #00E5FF;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+                    z-index: 10000;
+                    font-family: 'Helvetica Neue', Arial, sans-serif;
+                    max-width: 90%;
+                    text-align: center;
+                    animation: slideUp 0.3s ease;
+                `;
+
+                // Add animation
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideUp {
+                        from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+                        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+                    }
+                `;
+                document.head.appendChild(style);
+
+                document.body.appendChild(toast);
+
+                // Auto dismiss after 4 seconds
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transition = 'opacity 0.3s ease';
+                    setTimeout(() => toast.remove(), 300);
+                }, 4000);
+            }
+
+            // MAIN SCAN FUNCTION - Called when clicking the scan button
             async function scan() {
                 if (isScanning) {
                     console.log('Already scanning');
@@ -151,76 +198,23 @@
             // Dynamsoft Barcode Reader implementation
             async function scanWithDynamsoft() {
                 try {
-                    // Initialize the reader
-                    const reader = await Dynamsoft.BarcodeReader.createInstance();
-
-                    // Set up the scanner
                     const scanner = await Dynamsoft.BarcodeScanner.createInstance();
 
-                    // Set scan settings
                     await scanner.setScanSettings({
                         autoDetect: true,
-                        // Only decode QR codes for faster scanning
                         barcodeFormats: [Dynamsoft.EnumBarcodeFormat.QR_CODE]
                     });
 
-                    // Show the scanner UI
-                    const scanContainer = document.createElement('div');
-                    scanContainer.id = 'scanner-container';
-                    scanContainer.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0,0,0,0.9);
-                        z-index: 9999;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                    `;
-
-                    const closeBtn = document.createElement('button');
-                    closeBtn.textContent = '✕ Close';
-                    closeBtn.style.cssText = `
-                        position: absolute;
-                        top: 20px;
-                        right: 20px;
-                        background: rgba(255,255,255,0.2);
-                        color: white;
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 8px;
-                        font-size: 16px;
-                        cursor: pointer;
-                        z-index: 10000;
-                    `;
-                    closeBtn.onclick = () => {
-                        scanner.close();
-                        scanContainer.remove();
-                        isScanning = false;
-                    };
-
-                    scanContainer.appendChild(closeBtn);
-
-                    // Create camera view
-                    const videoElement = document.createElement('video');
-                    videoElement.id = 'scanner-video';
-                    videoElement.style.cssText = `
-                        width: 100%;
-                        max-width: 600px;
-                        height: auto;
-                        border-radius: 12px;
-                    `;
-                    scanContainer.appendChild(videoElement);
+                    // Create scanner UI
+                    const scanContainer = createScannerUI();
                     document.body.appendChild(scanContainer);
 
-                    // Start scanning
+                    // Set up scanner
+                    const videoElement = document.getElementById('scanner-video');
                     await scanner.setUIElement(videoElement.id);
                     await scanner.open();
 
-                    // Set up result handler
+                    // Handle results
                     scanner.onFrameRead = async (results) => {
                         if (results && results.length > 0) {
                             const result = results[0];
@@ -233,8 +227,8 @@
                                 scanContainer.remove();
                                 isScanning = false;
 
-                                // Process the scanned URL
-                                processScannedUrl(text);
+                                // Store location without redirecting
+                                storeScannedLocation(text);
                             }
                         }
                     };
@@ -245,6 +239,146 @@
                 }
             }
 
+            // Create scanner UI overlay
+            function createScannerUI() {
+                const container = document.createElement('div');
+                container.id = 'scanner-container';
+                container.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.95);
+                    z-index: 9999;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                `;
+
+                // Close button
+                const closeBtn = document.createElement('button');
+                closeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Close';
+                closeBtn.style.cssText = `
+                    position: absolute;
+                    top: 20px;
+                    right: 20px;
+                    background: rgba(255,255,255,0.1);
+                    color: white;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    cursor: pointer;
+                    z-index: 10000;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                `;
+                closeBtn.onmouseover = () => {
+                    closeBtn.style.background = 'rgba(255,255,255,0.2)';
+                };
+                closeBtn.onmouseout = () => {
+                    closeBtn.style.background = 'rgba(255,255,255,0.1)';
+                };
+                closeBtn.onclick = () => {
+                    // Close scanner
+                    if (window._scannerInstance) {
+                        window._scannerInstance.close();
+                    }
+                    container.remove();
+                    isScanning = false;
+                };
+                container.appendChild(closeBtn);
+
+                // Title
+                const title = document.createElement('h2');
+                title.textContent = 'Scan QR Code';
+                title.style.cssText = `
+                    color: white;
+                    margin-bottom: 20px;
+                    font-weight: 300;
+                    letter-spacing: 1px;
+                `;
+                container.appendChild(title);
+
+                // Video element
+                const video = document.createElement('video');
+                video.id = 'scanner-video';
+                video.style.cssText = `
+                    width: 100%;
+                    max-width: 500px;
+                    height: auto;
+                    border-radius: 12px;
+                    background: #000;
+                `;
+                container.appendChild(video);
+
+                // Scanning frame overlay
+                const frame = document.createElement('div');
+                frame.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 250px;
+                    height: 250px;
+                    border: 2px solid #00E5FF;
+                    border-radius: 12px;
+                    box-shadow: 0 0 30px rgba(0,229,255,0.2);
+                    pointer-events: none;
+                `;
+
+                // Corner markers
+                const corners = [{
+                    top: '-2px',
+                    left: '-2px',
+                    borderTop: '4px solid #00E5FF',
+                    borderLeft: '4px solid #00E5FF'
+                }, {
+                    top: '-2px',
+                    right: '-2px',
+                    borderTop: '4px solid #00E5FF',
+                    borderRight: '4px solid #00E5FF'
+                }, {
+                    bottom: '-2px',
+                    left: '-2px',
+                    borderBottom: '4px solid #00E5FF',
+                    borderLeft: '4px solid #00E5FF'
+                }, {
+                    bottom: '-2px',
+                    right: '-2px',
+                    borderBottom: '4px solid #00E5FF',
+                    borderRight: '4px solid #00E5FF'
+                }];
+
+                corners.forEach(corner => {
+                    const marker = document.createElement('div');
+                    marker.style.cssText = `
+                        position: absolute;
+                        ${Object.entries(corner).map(([key, val]) => `${key}: ${val};`).join(' ')}
+                        width: 20px;
+                        height: 20px;
+                    `;
+                    frame.appendChild(marker);
+                });
+
+                container.appendChild(frame);
+
+                // Instructions
+                const instruction = document.createElement('p');
+                instruction.textContent = 'Position QR code in the frame';
+                instruction.style.cssText = `
+                    color: rgba(255,255,255,0.7);
+                    margin-top: 20px;
+                    font-size: 14px;
+                `;
+                container.appendChild(instruction);
+
+                return container;
+            }
+
             // jsQR fallback implementation
             function scanWithJsQR() {
                 return new Promise((resolve, reject) => {
@@ -252,72 +386,15 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
 
-                    // Create scanner UI
-                    const scanContainer = document.createElement('div');
-                    scanContainer.id = 'scanner-container';
-                    scanContainer.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0,0,0,0.9);
-                        z-index: 9999;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                    `;
-
-                    const closeBtn = document.createElement('button');
-                    closeBtn.textContent = '✕ Close';
-                    closeBtn.style.cssText = `
-                        position: absolute;
-                        top: 20px;
-                        right: 20px;
-                        background: rgba(255,255,255,0.2);
-                        color: white;
-                        border: none;
-                        padding: 10px 20px;
-                        border-radius: 8px;
-                        font-size: 16px;
-                        cursor: pointer;
-                        z-index: 10000;
-                    `;
-                    closeBtn.onclick = () => {
-                        stream.getTracks().forEach(track => track.stop());
-                        scanContainer.remove();
-                        isScanning = false;
-                        resolve();
-                    };
-
-                    scanContainer.appendChild(closeBtn);
-
-                    const videoElement = document.createElement('video');
-                    videoElement.style.cssText = `
-                        width: 100%;
-                        max-width: 600px;
-                        height: auto;
-                        border-radius: 12px;
-                        transform: scaleX(-1);
-                    `;
-                    scanContainer.appendChild(videoElement);
-
-                    const statusText = document.createElement('p');
-                    statusText.textContent = 'Scanning for QR code...';
-                    statusText.style.cssText = `
-                        color: white;
-                        margin-top: 20px;
-                        font-size: 14px;
-                    `;
-                    scanContainer.appendChild(statusText);
-
+                    const scanContainer = createScannerUI();
                     document.body.appendChild(scanContainer);
+
+                    const videoElement = document.getElementById('scanner-video');
+                    videoElement.style.transform = 'scaleX(-1)';
 
                     let stream = null;
                     let animationFrame = null;
 
-                    // Start camera
                     navigator.mediaDevices.getUserMedia({
                             video: {
                                 facingMode: 'environment'
@@ -329,7 +406,6 @@
                             videoElement.setAttribute('playsinline', true);
                             videoElement.play();
 
-                            // Start scanning loop
                             function scanFrame() {
                                 if (!stream || stream.getTracks().some(track => track.readyState === 'ended')) {
                                     return;
@@ -356,7 +432,8 @@
                                         scanContainer.remove();
                                         isScanning = false;
 
-                                        processScannedUrl(code.data);
+                                        // Store location without redirecting
+                                        storeScannedLocation(code.data);
                                         resolve();
                                         return;
                                     }
@@ -373,6 +450,30 @@
                 });
             }
 
+            // Function to get scanned location (called from map page)
+            function getScannedLocation() {
+                const data = sessionStorage.getItem('scannedLocation');
+                if (data) {
+                    try {
+                        return JSON.parse(data);
+                    } catch (e) {
+                        console.error('Error parsing scanned location:', e);
+                        return null;
+                    }
+                }
+                return null;
+            }
+
+            // Function to clear scanned location after use
+            function clearScannedLocation() {
+                sessionStorage.removeItem('scannedLocation');
+            }
+
+            // Expose functions globally
+            window.scan = scan;
+            window.getScannedLocation = getScannedLocation;
+            window.clearScannedLocation = clearScannedLocation;
+
             // Listen for scanned location on page load
             window.addEventListener('load', function() {
                 // Check if we have a scanned location stored
@@ -380,8 +481,8 @@
                 if (scannedData) {
                     try {
                         const location = JSON.parse(scannedData);
-                        console.log('Found scanned location:', location);
-                        // You can process it here or let the map page handle it
+                        console.log('📦 Found scanned location in cache:', location);
+                        // Don't auto-redirect, just log it
                     } catch (e) {
                         console.error('Error parsing scanned location:', e);
                     }
@@ -439,5 +540,76 @@
                     console.error('❌ Service Worker registration failed:', err);
                 });
         }
+        // Function to handle "Scan Current Location" button click
+        function handleScanCurrentLocation() {
+            // Check if we have a scanned location in cache
+            const scannedLocation = window.getScannedLocation ? window.getScannedLocation() : null;
+
+            if (scannedLocation) {
+                console.log('📍 Using scanned location:', scannedLocation);
+
+                // Switch to the correct floor
+                currentFloor = scannedLocation.floor;
+                switchFloor(scannedLocation.floor);
+
+                // Remove existing marker
+                if (currentMarker) {
+                    searchMarkerLayer.removeLayer(currentMarker);
+                    currentMarker = null;
+                }
+
+                // Create marker at scanned location
+                currentMarker = L.circleMarker([scannedLocation.y, scannedLocation.x], {
+                    radius: 18,
+                    fillColor: '#00E5FF',
+                    color: '#00E5FF',
+                    weight: 3,
+                    opacity: 1,
+                    fillOpacity: 0.3,
+                    zIndex: 1000,
+                    className: 'pulse-marker'
+                });
+
+                // Add popup with location info
+                currentMarker.bindPopup(`
+            <div style="text-align: center; padding: 10px;">
+                <div style="font-size: 20px; margin-bottom: 5px;">📍</div>
+                <strong style="font-size: 16px;">${scannedLocation.name}</strong><br>
+                <span style="color: #666;">Floor ${scannedLocation.floor}</span><br>
+                <span style="font-size: 12px; color: #999;">
+                    X: ${scannedLocation.x.toFixed(1)} | Y: ${scannedLocation.y.toFixed(1)}
+                </span>
+            </div>
+        `);
+
+                searchMarkerLayer.addLayer(currentMarker);
+
+                // Open popup
+                setTimeout(() => {
+                    currentMarker.openPopup();
+                }, 300);
+
+                // Zoom to location
+                map.setView([scannedLocation.y, scannedLocation.x], 2.5, {
+                    animate: true,
+                    duration: 0.5
+                });
+
+                // Clear the cached location after using it
+                if (window.clearScannedLocation) {
+                    window.clearScannedLocation();
+                }
+
+                // Show success message
+                showToast(`📍 Location set to "${scannedLocation.name}"`);
+
+            } else {
+                // No scanned location found
+                showToast('Please scan a QR code first using the scan button');
+            }
+        }
+
+        // Add this to your existing code where you handle the "Scan Current Location" button
+        document.querySelector('.scan-current-location-btn')?.addEventListener('click', handleScanCurrentLocation);
     </script>
 </html>
