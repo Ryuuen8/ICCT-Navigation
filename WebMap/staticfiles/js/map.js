@@ -18,15 +18,23 @@ function getFloorBounds(floor) {
     return [[0, 0], [plan.height, plan.width]];
 }
 
+function getPaddedFloorBounds(floor) {
+    const plan = floorPlans[floor] || floorPlans[1];
+    const padX = plan.width * 0.08;
+    const padY = plan.height * 0.12;
+
+    return [[-padY, -padX], [plan.height + padY, plan.width + padX]];
+}
+
 function getMapPadding() {
-    return window.innerWidth < 768 ? L.point(56, 128) : L.point(32, 32);
+    return window.innerWidth < 768 ? L.point(12, 12) : L.point(24, 24);
 }
 
 function getFitBoundsOptions() {
     if (window.innerWidth < 768) {
         return {
-            paddingTopLeft: L.point(56, 72),
-            paddingBottomRight: L.point(56, 128),
+            paddingTopLeft: L.point(52, 76),
+            paddingBottomRight: L.point(52, 132),
             animate: false
         };
     }
@@ -38,9 +46,16 @@ function getFitBoundsOptions() {
 }
 
 function fitCurrentFloor() {
-    map.setMaxBounds(floors[currentFloor].bounds);
     map.setMinZoom(computeMinZoom());
+    map.setMaxBounds(getPaddedFloorBounds(currentFloor));
     map.fitBounds(floors[currentFloor].bounds, getFitBoundsOptions());
+}
+
+function fitCurrentFloorAfterLayout() {
+    requestAnimationFrame(() => {
+        map.invalidateSize();
+        fitCurrentFloor();
+    });
 }
 
 let currentFloor = normalizeFloorId(
@@ -49,8 +64,9 @@ let currentFloor = normalizeFloorId(
 
 var map = L.map('map', {
     crs: L.CRS.Simple,
-    zoomSnap: 0.5,
-    zoomDelta: 0.5,
+    minZoom: -5,
+    zoomSnap: 0,
+    zoomDelta: 0.25,
     wheelPxPerZoomLevel: 120,
     touchZoom: true,
     tap: true,
@@ -58,7 +74,7 @@ var map = L.map('map', {
     doubleClickZoom: true,
     bounceAtZoomLimits: false,
 
-    maxBounds: getFloorBounds(currentFloor),
+    maxBounds: getPaddedFloorBounds(currentFloor),
     maxBoundsViscosity: 1.0
 });
 
@@ -100,8 +116,6 @@ function normalizeFloorId(value) {
     return Number.isNaN(parsed) ? null : parsed;
 }
 
-fitCurrentFloor();
-
 // --- ONE resize handler, debounced. Recomputes minZoom only — does NOT
 //     call fitBounds/setView, so it won't yank the user's current view. ---
 let resizeTimer;
@@ -109,13 +123,13 @@ window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
         map.invalidateSize();
-        fitCurrentFloor();
+        fitCurrentFloorAfterLayout();
     }, 150);
 });
 window.addEventListener('orientationchange', () => {
     setTimeout(() => {
         map.invalidateSize();
-        fitCurrentFloor();
+        fitCurrentFloorAfterLayout();
     }, 200);
 });
 
@@ -132,6 +146,7 @@ function initFloors() {
 }
 
 initFloors();
+fitCurrentFloorAfterLayout();
 
 let currentPath = null;
 let selected = [];

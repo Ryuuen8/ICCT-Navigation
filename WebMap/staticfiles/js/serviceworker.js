@@ -1,4 +1,4 @@
-const CACHE_VERSION = "webmap-pwa-v4";
+const CACHE_VERSION = "webmap-pwa-v5";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const OFFLINE_URL = "/offline/";
@@ -25,11 +25,11 @@ const APP_STATIC = [
     "/static/js/pwa-install.js",
     "/static/images/icct-logo-square.png",
     "/static/images/Exit_icon.svg",
-    "/static/images/first-floor.svg",
-    "/static/images/second-floor.svg",
-    "/static/images/third-floor.svg",
-    "/static/images/fourth-floor.svg",
-    "/static/images/fifth-floor.svg",
+    "/static/images/1.svg",
+    "/static/images/2.svg",
+    "/static/images/3.svg",
+    "/static/images/4.svg",
+    "/static/images/5.svg",
 ];
 
 const CDN_ASSETS = [
@@ -83,6 +83,24 @@ async function cacheFirst(request, cacheName) {
         cache.put(request, response.clone());
     }
     return response;
+}
+
+async function networkFirstStatic(request, cacheName) {
+    const cache = await caches.open(cacheName);
+
+    try {
+        const response = await fetch(request, { cache: "reload" });
+        if (response.ok) {
+            cache.put(request, response.clone());
+        }
+        return response;
+    } catch (error) {
+        const cached = await cache.match(request);
+        if (cached) {
+            return cached;
+        }
+        throw error;
+    }
 }
 
 async function networkFirst(request, cacheName, fallbackUrl) {
@@ -199,7 +217,7 @@ self.addEventListener("fetch", (event) => {
     }
 
     if (isStaticAsset(url)) {
-        event.respondWith(cacheFirst(request, STATIC_CACHE));
+        event.respondWith(networkFirstStatic(request, STATIC_CACHE));
         return;
     }
 

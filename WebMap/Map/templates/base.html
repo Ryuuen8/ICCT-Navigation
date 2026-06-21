@@ -237,10 +237,13 @@
     </body>
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/static/js/serviceworker.js')
+            navigator.serviceWorker.register('/static/js/serviceworker.js', {
+                updateViaCache: 'none'
+            })
                 .then(reg => {
                     console.log('✅ Service Worker registered:', reg);
                     console.log('Scope:', reg.scope);
+                    reg.update();
                 })
                 .catch(err => {
                     console.error('❌ Service Worker registration failed:', err);
