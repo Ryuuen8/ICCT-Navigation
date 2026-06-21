@@ -428,6 +428,8 @@ function handleScannedLocation() {
                 floor: parseInt(floor, 10),
                 name: name
             });
+            // Store it in sessionStorage so it persists
+            sessionStorage.setItem('scannedLocation', scannedData);
             history.replaceState(null, '', window.location.pathname);
         }
     }
@@ -436,7 +438,7 @@ function handleScannedLocation() {
 
     try {
         const location = JSON.parse(scannedData);
-        sessionStorage.removeItem('scannedLocation');
+        // ✅ DON'T remove it here - keep it in sessionStorage for the home page
 
         // Switch to the correct floor
         currentFloor = location.floor;
@@ -454,13 +456,13 @@ function handleScannedLocation() {
         });
 
         marker.bindPopup(`
-                <div style="text-align: center; padding: 10px;">
-                    <strong>${location.name || 'QR Location'}</strong><br>
-                    X: ${location.x.toFixed(2)}<br>
-                    Y: ${location.y.toFixed(2)}<br>
-                    Floor: ${location.floor}
-                </div>
-            `);
+            <div style="text-align: center; padding: 10px;">
+                <strong>${location.name || 'QR Location'}</strong><br>
+                X: ${location.x.toFixed(2)}<br>
+                Y: ${location.y.toFixed(2)}<br>
+                Floor: ${location.floor}
+            </div>
+        `);
 
         floors[location.floor].layer.addLayer(marker);
         marker.openPopup();
@@ -477,6 +479,10 @@ function handleScannedLocation() {
         }
 
         console.log('Scanned location displayed:', location);
+
+        // ✅ Keep the location in sessionStorage so home page shows it
+        // Only remove it if the user explicitly clears it or after navigation completes
+
     } catch (error) {
         console.error('Error handling scanned location:', error);
     }
