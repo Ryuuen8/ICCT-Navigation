@@ -28,6 +28,30 @@
         #emergencyPopup .announcement-item {
             cursor: pointer;
         }
+
+        /* Pulse animation for location dot */
+        @keyframes pulse-dot {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 0.7;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .dot.scanned {
+            background: #00E5FF !important;
+            box-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
+            animation: pulse-dot 1.5s ease-in-out infinite;
+        }
     </style>
     <script>
         function toggleAnnouncement(el) {
@@ -70,19 +94,19 @@
                         <i class="fa-solid fa-map-location-dot"></i>
                         <span>Floor Maps</span>
                     </div>
-                    <div class="quick-item">
+                    <div class="quick-item" id="assembly-btn">
                         <i class="fa-solid fa-people-group"></i>
                         <span>Assembly Point</span>
                     </div>
-                    <div class="quick-item">
+                    <div class="quick-item" id="safety-btn">
                         <i class="fa-solid fa-shield-heart"></i>
                         <span>Safety Tips</span>
                     </div>
-                    <div class="quick-item">
+                    <div class="quick-item" id="contact-btn">
                         <i class="fa-solid fa-phone"></i>
                         <span>Contact Security</span>
                     </div>
-                    <div class="quick-item">
+                    <div class="quick-item" id="hazard-btn">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <span>Report Hazard</span>
                     </div>
@@ -100,6 +124,15 @@
                     <small>CURRENT LOCATION</small>
                     <h3 id="current-location-name">No Location Scanned</h3>
                     <p id="current-location-detail">Scan a QR code to get your location</p>
+                    <button id="clear-location-btn"
+                            style="display:none;
+                                   margin-top:8px;
+                                   background:none;
+                                   border:none;
+                                   color:#999;
+                                   font-size:12px;
+                                   cursor:pointer;
+                                   text-decoration:underline">Clear location</button>
                 </div>
             </section>
             <!-- POPUP - Floor Selection -->
@@ -504,13 +537,71 @@
         window.history.replaceState(null, null, window.location.href);
     }
 </script>
-<!-- EMERGENCY POPUP LOGIC (self-contained — doesn't depend on mainscript.js) -->
+<!-- LOCATION DISPLAY SCRIPT - Shows scanned location on home page -->
 <script>
     (function() {
-        // 🛠️ DEFINED SYSTEM CONSTANTS
-        const EMERGENCY_DESTINATION = 'NEAREST_EMERGENCY';
+        function getScannedLocation() {
+            try {
+                const data = sessionStorage.getItem('scannedLocation');
+                return data ? JSON.parse(data) : null;
+            } catch (e) {
+                console.error('Error parsing scanned location:', e);
+                return null;
+            }
+        }
+
+        function updateLocationDisplay() {
+            const location = getScannedLocation();
+            const nameEl = document.getElementById('current-location-name');
+            const detailEl = document.getElementById('current-location-detail');
+            const dotEl = document.getElementById('location-dot');
+            const clearBtn = document.getElementById('clear-location-btn');
+
+            if (location && location.name) {
+                nameEl.textContent = location.name;
+                detailEl.textContent = `Floor ${location.floor} • X: ${location.x.toFixed(1)} Y: ${location.y.toFixed(1)}`;
+                dotEl.className = 'dot scanned';
+                if (clearBtn) clearBtn.style.display = 'inline-block';
+                console.log('📍 Location displayed on home page:', location.name);
+            } else {
+                nameEl.textContent = 'No Location Scanned';
+                detailEl.textContent = 'Scan a QR code to get your location';
+                dotEl.className = 'dot';
+                if (clearBtn) clearBtn.style.display = 'none';
+            }
+        }
+
+        function clearScannedLocation() {
+            sessionStorage.removeItem('scannedLocation');
+            updateLocationDisplay();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const clearBtn = document.getElementById('clear-location-btn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', clearScannedLocation);
+            }
+            updateLocationDisplay();
+
+            window.addEventListener('storage', function(e) {
+                if (e.key === 'scannedLocation') {
+                    updateLocationDisplay();
+                }
+            });
+        });
+
+        window.updateLocationDisplay = updateLocationDisplay;
+        window.clearScannedLocation = clearScannedLocation;
+        window.getScannedLocation = getScannedLocation;
+    })();
+</script>
+<!-- EMERGENCY POPUP LOGIC - FIXED with correct emergency exit name -->
+<script>
+    (function() {
+        // ✅ CORRECT: Use the actual database name of your emergency exit
+        const EMERGENCY_EXIT_NAME = 'EMERGENCY EXIT 1';
         const FLOOR_MAP_URL = "{% url 'floormap' %}";
-        // DOM Element Selectors
+
         const popup = document.getElementById('emergencyPopup');
         const emergencyCard = document.getElementById('emergency-card');
         const closeBtn = document.getElementById('closeEmergencyBtn');
@@ -519,40 +610,28 @@
         const scanNowBtn = document.getElementById('emergencyScanNowBtn');
         const allExitsBtn = document.getElementById('emergencyAllExitsBtn');
         const lastScanDetail = document.getElementById('emergencyLastScanDetail');
-        // Helper: Safe Extraction of Session Storage items
+
         function getLastKnownLocation() {
             try {
                 const raw = sessionStorage.getItem('scannedLocation');
                 return raw ? JSON.parse(raw) : null;
             } catch (e) {
-                console.error("Error reading scannedLocation from sessionStorage:", e);
+                console.error("Error reading scannedLocation:", e);
                 return null;
-            }
-        }
-        // Dynamically Updates Dashboard UI elements if they are present
-        function updateLocationDisplayUI(locationObj) {
-            const locNameEl = document.getElementById('current-location-name');
-            const locDetailEl = document.getElementById('current-location-detail');
-            const locDotEl = document.getElementById('location-dot');
-            if (locationObj && locationObj.name) {
-                if (locNameEl) locNameEl.textContent = locationObj.name;
-                if (locDetailEl) locDetailEl.textContent = `Floor ${locationObj.floor || 'N/A'} — Room/Area Verified`;
-                if (locDotEl) locDotEl.style.background = "#2ec4b6"; // Active green/teal badge color
             }
         }
 
         function openEmergencyPopup() {
             const last = getLastKnownLocation();
+
             if (last && last.name) {
-                // Render location parameters straight to the user prompt view safely
-                lastScanDetail.textContent = `Route from "${last.name}" (Floor ${last.floor}).`;
+                lastScanDetail.textContent = `Route from "${last.name}" (Floor ${last.floor}) to ${EMERGENCY_EXIT_NAME}.`;
                 lastScanBtn.classList.remove('disabled');
-                // Fallback synchronization check for main screen UI display card
-                updateLocationDisplayUI(last);
             } else {
                 lastScanDetail.textContent = 'No scanned location yet — scan a QR code first.';
                 lastScanBtn.classList.add('disabled');
             }
+
             popup.classList.add('active');
             popup.setAttribute('aria-hidden', 'false');
         }
@@ -561,49 +640,161 @@
             popup.classList.remove('active');
             popup.setAttribute('aria-hidden', 'true');
         }
+
         // 🚨 1. USE LAST SCANNED LOCATION → ROUTE TO EMERGENCY EXIT
         function goFromLastScan() {
             const last = getLastKnownLocation();
+
             if (!last || !last.name) {
-                alert('No scanned location found. Please scan a code first.');
+                alert('No scanned location found. Please scan a QR code first.');
                 return;
             }
-            // Fixed fallback route generation cleanly parsing destination points
-            window.location.href = `${FLOOR_MAP_URL}?start=${encodeURIComponent(last.name)}&end=${encodeURIComponent(EMERGENCY_DESTINATION)}&emergency=true`;
+
+            // ✅ Use the actual emergency exit name from your database
+            const url = `${FLOOR_MAP_URL}?start=${encodeURIComponent(last.name)}&end=${encodeURIComponent(EMERGENCY_EXIT_NAME)}&emergency=true`;
+            console.log('🚨 Emergency route from last scan:', url);
+            window.location.href = url;
         }
-        // 🚨 2. SCAN NEW LOCATION → REDIRECT WITH PENDING ACTIONS
+
+        // 🚨 2. SCAN NEW LOCATION → THEN ROUTE TO EMERGENCY EXIT
         function goFromNewScan() {
-            sessionStorage.setItem('pendingNavigationDestination', EMERGENCY_DESTINATION);
+            // Set pending flags for after scan
+            sessionStorage.setItem('pendingNavigationDestination', EMERGENCY_EXIT_NAME);
             sessionStorage.setItem('pendingEmergencyRoute', 'true');
             sessionStorage.setItem('EMERGENCY_SCAN_MODE', 'true');
-            // If an active hardware scan event instance exists in the app module scope, call it
+
+            // If scan function exists, call it
             if (typeof scan === 'function') {
+                console.log('📷 Starting QR scanner for emergency...');
                 scan();
             } else {
-                // Otherwise fallback directly onto loading map logic processing state triggers
+                // Fallback: go to map with prompt
                 window.location.href = `${FLOOR_MAP_URL}?emergency=true&promptScan=true`;
             }
         }
-        // 🚨 3. ALL EXITS MAP OVERVIEW VIEW
+
+        // 🚨 3. VIEW ALL FLOOR EXITS
         function goToAllFloorExits() {
             window.location.href = `${FLOOR_MAP_URL}?emergency=true&showAllExits=true`;
         }
-        // Event Binding Setup
+
+        // Event Listeners
         emergencyCard.addEventListener('click', openEmergencyPopup);
         closeBtn.addEventListener('click', closeEmergencyPopup);
         cancelBtn.addEventListener('click', closeEmergencyPopup);
+
         popup.addEventListener('click', (e) => {
             if (e.target === popup) closeEmergencyPopup();
         });
+
         lastScanBtn.addEventListener('click', function(e) {
             if (!this.classList.contains('disabled')) {
                 goFromLastScan();
             }
         });
+
         scanNowBtn.addEventListener('click', goFromNewScan);
         allExitsBtn.addEventListener('click', goToAllFloorExits);
-        // Run an instant automated UI lifecycle frame sync check upon startup initialization
-        updateLocationDisplayUI(getLastKnownLocation());
+
+        // Update location display on load
+        const initialLocation = getLastKnownLocation();
+        if (initialLocation) {
+            updateLocationDisplay();
+        }
     })();
+</script>
+<!-- Quick Access Button Handlers -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Floor Maps button
+        document.getElementById('floor-btn')?.addEventListener('click', function() {
+            document.getElementById('test').style.display = 'flex';
+        });
+
+        // Assembly Point button
+        document.getElementById('assembly-btn')?.addEventListener('click', function() {
+            document.getElementById('assemblyPopup').classList.add('active');
+        });
+
+        // Safety Tips button
+        document.getElementById('safety-btn')?.addEventListener('click', function() {
+            document.getElementById('safetyPopup').classList.add('active');
+        });
+
+        // Contact Security button
+        document.getElementById('contact-btn')?.addEventListener('click', function() {
+            document.getElementById('contactPopup').classList.add('active');
+        });
+
+        // Report Hazard button
+        document.getElementById('hazard-btn')?.addEventListener('click', function() {
+            document.getElementById('hazardPopup').classList.add('active');
+        });
+
+        // Announcement button
+        document.getElementById('announcement-btn')?.addEventListener('click', function() {
+            document.getElementById('announcementPopup').classList.add('active');
+        });
+
+        // Close buttons
+        document.getElementById('closePopupBtn')?.addEventListener('click', function() {
+            document.getElementById('test').style.display = 'none';
+        });
+
+        document.getElementById('closeAssemblyBtn')?.addEventListener('click', function() {
+            document.getElementById('assemblyPopup').classList.remove('active');
+        });
+
+        document.getElementById('closeSafetyBtn')?.addEventListener('click', function() {
+            document.getElementById('safetyPopup').classList.remove('active');
+        });
+
+        document.getElementById('closeContactBtn')?.addEventListener('click', function() {
+            document.getElementById('contactPopup').classList.remove('active');
+        });
+
+        document.getElementById('closeHazardBtn')?.addEventListener('click', function() {
+            document.getElementById('hazardPopup').classList.remove('active');
+        });
+
+        document.getElementById('closeAnnouncementBtn')?.addEventListener('click', function() {
+            document.getElementById('announcementPopup').classList.remove('active');
+        });
+
+        document.getElementById('announcementOkBtn')?.addEventListener('click', function() {
+            document.getElementById('announcementPopup').classList.remove('active');
+        });
+
+        document.getElementById('assemblyOkBtn')?.addEventListener('click', function() {
+            document.getElementById('assemblyPopup').classList.remove('active');
+        });
+
+        document.getElementById('safetyOkBtn')?.addEventListener('click', function() {
+            document.getElementById('safetyPopup').classList.remove('active');
+        });
+
+        document.getElementById('contactOkBtn')?.addEventListener('click', function() {
+            document.getElementById('contactPopup').classList.remove('active');
+        });
+
+        document.getElementById('hazardCancelBtn')?.addEventListener('click', function() {
+            document.getElementById('hazardPopup').classList.remove('active');
+        });
+
+        // Popup close for floor selection
+        document.getElementById('test')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.style.display = 'none';
+            }
+        });
+
+        // Floor selection cards
+        document.querySelectorAll('.popup-floor-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const floor = this.dataset.floor;
+                window.location.href = `/map/?floor=${floor}`;
+            });
+        });
+    });
 </script>
 {% endblock content %}
