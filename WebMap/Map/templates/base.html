@@ -65,6 +65,7 @@
         {% endblock css %}
         <script>
             let qrScanner = null;
+            let isScanning = false;
 
             function processScannedUrl(scannedUrl) {
                 try {
@@ -108,6 +109,284 @@
                     alert('Invalid QR data');
                 }
             }
+
+            // MAIN SCAN FUNCTION - This is what gets called when you click the scan button
+            async function scan() {
+                if (isScanning) {
+                    console.log('Already scanning');
+                    return;
+                }
+
+                try {
+                    isScanning = true;
+
+                    // Check if camera is available
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        alert('Camera not supported on this device');
+                        isScanning = false;
+                        return;
+                    }
+
+                    // Try using Dynamsoft Barcode Reader first (more robust)
+                    if (typeof Dynamsoft !== 'undefined' && Dynamsoft.BarcodeReader) {
+                        try {
+                            await scanWithDynamsoft();
+                            return;
+                        } catch (error) {
+                            console.warn('Dynamsoft failed, falling back to jsQR:', error);
+                        }
+                    }
+
+                    // Fallback to jsQR
+                    await scanWithJsQR();
+
+                } catch (error) {
+                    console.error('Scan error:', error);
+                    alert('Error accessing camera: ' + error.message);
+                } finally {
+                    isScanning = false;
+                }
+            }
+
+            // Dynamsoft Barcode Reader implementation
+            async function scanWithDynamsoft() {
+                try {
+                    // Initialize the reader
+                    const reader = await Dynamsoft.BarcodeReader.createInstance();
+
+                    // Set up the scanner
+                    const scanner = await Dynamsoft.BarcodeScanner.createInstance();
+
+                    // Set scan settings
+                    await scanner.setScanSettings({
+                        autoDetect: true,
+                        // Only decode QR codes for faster scanning
+                        barcodeFormats: [Dynamsoft.EnumBarcodeFormat.QR_CODE]
+                    });
+
+                    // Show the scanner UI
+                    const scanContainer = document.createElement('div');
+                    scanContainer.id = 'scanner-container';
+                    scanContainer.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0,0,0,0.9);
+                        z-index: 9999;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                    `;
+
+                    const closeBtn = document.createElement('button');
+                    closeBtn.textContent = '✕ Close';
+                    closeBtn.style.cssText = `
+                        position: absolute;
+                        top: 20px;
+                        right: 20px;
+                        background: rgba(255,255,255,0.2);
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        cursor: pointer;
+                        z-index: 10000;
+                    `;
+                    closeBtn.onclick = () => {
+                        scanner.close();
+                        scanContainer.remove();
+                        isScanning = false;
+                    };
+
+                    scanContainer.appendChild(closeBtn);
+
+                    // Create camera view
+                    const videoElement = document.createElement('video');
+                    videoElement.id = 'scanner-video';
+                    videoElement.style.cssText = `
+                        width: 100%;
+                        max-width: 600px;
+                        height: auto;
+                        border-radius: 12px;
+                    `;
+                    scanContainer.appendChild(videoElement);
+                    document.body.appendChild(scanContainer);
+
+                    // Start scanning
+                    await scanner.setUIElement(videoElement.id);
+                    await scanner.open();
+
+                    // Set up result handler
+                    scanner.onFrameRead = async (results) => {
+                        if (results && results.length > 0) {
+                            const result = results[0];
+                            if (result.barcodeFormat === Dynamsoft.EnumBarcodeFormat.QR_CODE) {
+                                const text = result.barcodeText;
+                                console.log('QR Code detected:', text);
+
+                                // Close scanner
+                                await scanner.close();
+                                scanContainer.remove();
+                                isScanning = false;
+
+                                // Process the scanned URL
+                                processScannedUrl(text);
+                            }
+                        }
+                    };
+
+                } catch (error) {
+                    console.error('Dynamsoft scan error:', error);
+                    throw error;
+                }
+            }
+
+            // jsQR fallback implementation
+            function scanWithJsQR() {
+                return new Promise((resolve, reject) => {
+                    const video = document.createElement('video');
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    // Create scanner UI
+                    const scanContainer = document.createElement('div');
+                    scanContainer.id = 'scanner-container';
+                    scanContainer.style.cssText = `
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0,0,0,0.9);
+                        z-index: 9999;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                    `;
+
+                    const closeBtn = document.createElement('button');
+                    closeBtn.textContent = '✕ Close';
+                    closeBtn.style.cssText = `
+                        position: absolute;
+                        top: 20px;
+                        right: 20px;
+                        background: rgba(255,255,255,0.2);
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 8px;
+                        font-size: 16px;
+                        cursor: pointer;
+                        z-index: 10000;
+                    `;
+                    closeBtn.onclick = () => {
+                        stream.getTracks().forEach(track => track.stop());
+                        scanContainer.remove();
+                        isScanning = false;
+                        resolve();
+                    };
+
+                    scanContainer.appendChild(closeBtn);
+
+                    const videoElement = document.createElement('video');
+                    videoElement.style.cssText = `
+                        width: 100%;
+                        max-width: 600px;
+                        height: auto;
+                        border-radius: 12px;
+                        transform: scaleX(-1);
+                    `;
+                    scanContainer.appendChild(videoElement);
+
+                    const statusText = document.createElement('p');
+                    statusText.textContent = 'Scanning for QR code...';
+                    statusText.style.cssText = `
+                        color: white;
+                        margin-top: 20px;
+                        font-size: 14px;
+                    `;
+                    scanContainer.appendChild(statusText);
+
+                    document.body.appendChild(scanContainer);
+
+                    let stream = null;
+                    let animationFrame = null;
+
+                    // Start camera
+                    navigator.mediaDevices.getUserMedia({
+                            video: {
+                                facingMode: 'environment'
+                            }
+                        })
+                        .then(s => {
+                            stream = s;
+                            videoElement.srcObject = s;
+                            videoElement.setAttribute('playsinline', true);
+                            videoElement.play();
+
+                            // Start scanning loop
+                            function scanFrame() {
+                                if (!stream || stream.getTracks().some(track => track.readyState === 'ended')) {
+                                    return;
+                                }
+
+                                if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+                                    canvas.width = videoElement.videoWidth;
+                                    canvas.height = videoElement.videoHeight;
+                                    ctx.drawImage(videoElement, 0, 0);
+
+                                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                                        inversionAttempts: "dontInvert",
+                                    });
+
+                                    if (code && code.data) {
+                                        console.log('QR Code found:', code.data);
+
+                                        // Stop scanning
+                                        stream.getTracks().forEach(track => track.stop());
+                                        if (animationFrame) {
+                                            cancelAnimationFrame(animationFrame);
+                                        }
+                                        scanContainer.remove();
+                                        isScanning = false;
+
+                                        processScannedUrl(code.data);
+                                        resolve();
+                                        return;
+                                    }
+                                }
+
+                                animationFrame = requestAnimationFrame(scanFrame);
+                            }
+
+                            scanFrame();
+                        })
+                        .catch(error => {
+                            reject(error);
+                        });
+                });
+            }
+
+            // Listen for scanned location on page load
+            window.addEventListener('load', function() {
+                // Check if we have a scanned location stored
+                const scannedData = sessionStorage.getItem('scannedLocation');
+                if (scannedData) {
+                    try {
+                        const location = JSON.parse(scannedData);
+                        console.log('Found scanned location:', location);
+                        // You can process it here or let the map page handle it
+                    } catch (e) {
+                        console.error('Error parsing scanned location:', e);
+                    }
+                }
+            });
         </script>
         {% block extra_head %}
         {% endblock extra_head %}
@@ -129,7 +408,7 @@
             </a>
             <!-- CENTER SCAN BUTTON -->
             <div id="reader" class="scan-btn-container">
-                <a onclick="scan()" class="scan-btn">
+                <a href="#" onclick="scan(); return false;" class="scan-btn">
                     <i class="fa fa-qrcode"></i>
                 </a>
             </div>
