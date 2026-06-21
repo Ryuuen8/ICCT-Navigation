@@ -2,20 +2,55 @@
 console.log("MAP JS LOADED");
 console.log("navbtn at load:", document.getElementById("navbtn"));
 
-// --- Use the floor plan's REAL pixel dimensions, not an arbitrary square ---
-// testf.svg is 790 x 615 — if other floor SVGs differ in size, each
-// imageOverlay needs its own bounds (ask me and I'll wire that up).
-const IMAGE_WIDTH = 790;
-const IMAGE_HEIGHT = 615;
-const MAP_PADDING = window.innerWidth < 768 ? [40, 40] : [20, 20];
+// --- Use each floor plan's real SVG dimensions for accurate fit/zoom. ---
+const floorPlans = {
+    1: { imageUrl: '/static/images/1.svg', width: 934, height: 817 },
+    2: { imageUrl: '/static/images/2.svg', width: 920, height: 639 },
+    3: { imageUrl: '/static/images/3.svg', width: 920, height: 636 },
+    4: { imageUrl: '/static/images/4.svg', width: 920, height: 635 },
+    5: { imageUrl: '/static/images/5.svg', width: 918, height: 636 }
+};
 
 // In L.CRS.Simple, bounds are [[y_min, x_min], [y_max, x_max]]
-const bounds = [[0, 0], [IMAGE_HEIGHT, IMAGE_WIDTH]];
+function getFloorBounds(floor) {
+    const plan = floorPlans[floor] || floorPlans[1];
+    // In L.CRS.Simple, bounds are [[y_min, x_min], [y_max, x_max]]
+    return [[0, 0], [plan.height, plan.width]];
+}
+
+function getMapPadding() {
+    return window.innerWidth < 768 ? L.point(56, 128) : L.point(32, 32);
+}
+
+function getFitBoundsOptions() {
+    if (window.innerWidth < 768) {
+        return {
+            paddingTopLeft: L.point(56, 72),
+            paddingBottomRight: L.point(56, 128),
+            animate: false
+        };
+    }
+
+    return {
+        padding: getMapPadding(),
+        animate: false
+    };
+}
+
+function fitCurrentFloor() {
+    map.setMaxBounds(floors[currentFloor].bounds);
+    map.setMinZoom(computeMinZoom());
+    map.fitBounds(floors[currentFloor].bounds, getFitBoundsOptions());
+}
+
+let currentFloor = normalizeFloorId(
+    new URLSearchParams(window.location.search).get('floor')
+) ?? 1;
 
 var map = L.map('map', {
     crs: L.CRS.Simple,
-    zoomSnap: 0.25,
-    zoomDelta: 0.25,
+    zoomSnap: 0.5,
+    zoomDelta: 0.5,
     wheelPxPerZoomLevel: 120,
     touchZoom: true,
     tap: true,
@@ -23,23 +58,28 @@ var map = L.map('map', {
     doubleClickZoom: true,
     bounceAtZoomLimits: false,
 
-    maxBounds: bounds,
+    maxBounds: getFloorBounds(currentFloor),
     maxBoundsViscosity: 1.0
 });
 
-const floors = {
-    1: { image: L.imageOverlay('/static/images/testf.svg', bounds), layer: L.layerGroup() },
-    2: { image: L.imageOverlay('/static/images/second-floor.svg', bounds), layer: L.layerGroup() },
-    3: { image: L.imageOverlay('/static/images/third-floor.svg', bounds), layer: L.layerGroup() },
-    4: { image: L.imageOverlay('/static/images/fourth-floor.svg', bounds), layer: L.layerGroup() },
-    5: { image: L.imageOverlay('/static/images/fifth-floor.svg', bounds), layer: L.layerGroup() }
-};
+const floors = Object.fromEntries(
+    Object.entries(floorPlans).map(([floor, plan]) => {
+        const floorNumber = parseInt(floor, 10);
+        const floorBounds = getFloorBounds(floorNumber);
+
+        return [floorNumber, {
+            bounds: floorBounds,
+            image: L.imageOverlay(plan.imageUrl, floorBounds),
+            layer: L.layerGroup()
+        }];
+    })
+);
 
 // --- ONE function that computes "zoomed all the way out shows the whole
 //     map" zoom level, using the same padding everywhere. This is the
 //     ONLY place minZoom is computed. ---
 function computeMinZoom() {
-    return map.getBoundsZoom(bounds, false, L.point(MAP_PADDING[0], MAP_PADDING[1]));
+    return map.getBoundsZoom(floors[currentFloor].bounds, false, getMapPadding());
 }
 
 map.setMinZoom(computeMinZoom());
@@ -60,15 +100,7 @@ function normalizeFloorId(value) {
     return Number.isNaN(parsed) ? null : parsed;
 }
 
-let currentFloor = normalizeFloorId(
-    new URLSearchParams(window.location.search).get('floor')
-) ?? 1;
-
-// --- ONE place the initial view is set: bottom-left corner, zoomed in
-//     past the minimum. Nothing after this calls fitBounds()/setView()
-//     again, so this won't get overridden. ---
-const initialZoom = computeMinZoom() + 1;
-map.setView([0, 0], initialZoom);
+fitCurrentFloor();
 
 // --- ONE resize handler, debounced. Recomputes minZoom only — does NOT
 //     call fitBounds/setView, so it won't yank the user's current view. ---
@@ -77,13 +109,13 @@ window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
         map.invalidateSize();
-        map.setMinZoom(computeMinZoom());
+        fitCurrentFloor();
     }, 150);
 });
 window.addEventListener('orientationchange', () => {
     setTimeout(() => {
         map.invalidateSize();
-        map.setMinZoom(computeMinZoom());
+        fitCurrentFloor();
     }, 200);
 });
 
@@ -106,6 +138,7 @@ let selected = [];
 let currentMarker = null;
 let currentMarkerTimeout = null;
 const searchMarkerLayer = L.layerGroup().addTo(map);
+const PENDING_DESTINATION_KEY = 'pendingNavigationDestination';
 
 // Brief: client-side map controller used on the floor map pages.
 // - Shows floor overlays, handles floor switching
@@ -117,22 +150,136 @@ let pathfindingMode = false;
 
 function setPathfindingMode(active) {
     pathfindingMode = active;
+    setNavigateButtonActive(active);
 
-    if (compassBtn) {
-        if (active) {
-            compassBtn.style.backgroundColor = '#00E5FF';
-            compassBtn.style.color = '#000';
-            compassBtn.style.borderRadius = '8px';
-            compassBtn.style.transition = 'all 0.3s ease';
-            document.getElementById('map').style.cursor = 'crosshair';
-        } else {
-            compassBtn.style.backgroundColor = 'transparent';
-            compassBtn.style.color = '';
-            document.getElementById('map').style.cursor = '';
-            // Clear selections when disabling pathfinding so users start fresh
-            selected = [];
-        }
+    if (!active) {
+        // Clear selections when disabling pathfinding so users start fresh
+        selected = [];
     }
+}
+
+function setNavigateButtonActive(active) {
+    if (!compassBtn) return;
+
+    if (active) {
+        compassBtn.style.backgroundColor = '#00E5FF';
+        compassBtn.style.color = '#000';
+        compassBtn.style.borderRadius = '8px';
+        compassBtn.style.transition = 'all 0.3s ease';
+        document.getElementById('map').style.cursor = 'crosshair';
+    } else {
+        compassBtn.style.backgroundColor = 'transparent';
+        compassBtn.style.color = '';
+        document.getElementById('map').style.cursor = '';
+    }
+}
+
+function closeNavigatePopup() {
+    const existingPopup = document.getElementById('navigate-choice-popup');
+    if (existingPopup) {
+        existingPopup.remove();
+    }
+}
+
+function findLocationByName(roomName) {
+    if (!roomName) return null;
+
+    const normalizedRoomName = String(roomName).trim().toLowerCase();
+    const exactMatch = locations.find((loc) => loc.room_name.toLowerCase() === normalizedRoomName);
+    if (exactMatch) return exactMatch;
+
+    const partialMatches = locations.filter((loc) =>
+        loc.room_name.toLowerCase().includes(normalizedRoomName)
+    );
+
+    return partialMatches.length === 1 ? partialMatches[0] : null;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function createDestinationOptions() {
+    return locations
+        .filter((loc) => loc.room_name && !loc.room_name.toLowerCase().startsWith('point'))
+        .map((loc) => `<option value="${escapeHtml(loc.room_name)}"></option>`)
+        .join('');
+}
+
+function startManualNavigation() {
+    closeNavigatePopup();
+    selected = [];
+    setPathfindingMode(true);
+}
+
+function startQrNavigation(destinationName) {
+    const destination = findLocationByName(destinationName);
+
+    if (!destination) {
+        alert('Please choose a valid destination.');
+        return;
+    }
+
+    sessionStorage.setItem(PENDING_DESTINATION_KEY, destination.room_name);
+    closeNavigatePopup();
+
+    if (typeof scan === 'function') {
+        scan();
+    } else {
+        alert('QR scanner is not available on this page.');
+    }
+}
+
+function openNavigatePopup() {
+    closeNavigatePopup();
+
+    const popup = document.createElement('div');
+    popup.id = 'navigate-choice-popup';
+    popup.className = 'navigate-choice-popup';
+    popup.innerHTML = `
+        <div class="navigate-choice-header">
+            <strong>Navigate</strong>
+            <button type="button" class="navigate-choice-close" aria-label="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <button type="button" class="navigate-choice-option" data-nav-mode="manual">
+            <i class="fa-solid fa-hand-pointer"></i>
+            <span>Manual path</span>
+        </button>
+        <form class="navigate-choice-form">
+            <label for="navigateDestination">Destination</label>
+            <input
+                id="navigateDestination"
+                type="text"
+                list="navigateDestinationList"
+                placeholder="Search destination"
+                autocomplete="off"
+            >
+            <datalist id="navigateDestinationList">
+                ${createDestinationOptions()}
+            </datalist>
+            <button type="submit" class="navigate-choice-option navigate-choice-scan">
+                <i class="fa-solid fa-qrcode"></i>
+                <span>Scan QR</span>
+            </button>
+        </form>
+    `;
+
+    document.body.appendChild(popup);
+
+    popup.querySelector('.navigate-choice-close').addEventListener('click', closeNavigatePopup);
+    popup.querySelector('[data-nav-mode="manual"]').addEventListener('click', startManualNavigation);
+    popup.querySelector('.navigate-choice-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const destinationInput = popup.querySelector('#navigateDestination');
+        startQrNavigation(destinationInput.value);
+    });
 }
 
 var coordControl = L.control({ position: 'bottomleft' });
@@ -218,6 +365,17 @@ function handleScannedLocation() {
         floors[location.floor].layer.addLayer(marker);
         marker.openPopup();
 
+        const pendingDestination = sessionStorage.getItem(PENDING_DESTINATION_KEY);
+        if (pendingDestination) {
+            sessionStorage.removeItem(PENDING_DESTINATION_KEY);
+
+            if (location.name) {
+                requestPath(location.name, pendingDestination);
+            } else {
+                alert('QR location found, but it does not include a room name for navigation.');
+            }
+        }
+
         console.log('Scanned location displayed:', location);
     } catch (error) {
         console.error('Error handling scanned location:', error);
@@ -289,6 +447,39 @@ function getFirstPathFloor(pathData) {
     return null;
 }
 
+function smoothPath(points, segments = 8) {
+    if (points.length < 3) return points;
+
+    const smoothed = [];
+    for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i - 1] || points[i];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[i + 2] || p2;
+
+        for (let t = 0; t < segments; t++) {
+            const tt = t / segments;
+            const tt2 = tt * tt;
+            const tt3 = tt2 * tt;
+
+            const x = 0.5 * ((2 * p1[1]) +
+                (-p0[1] + p2[1]) * tt +
+                (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * tt2 +
+                (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * tt3);
+
+            const y = 0.5 * ((2 * p1[0]) +
+                (-p0[0] + p2[0]) * tt +
+                (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * tt2 +
+                (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * tt3);
+
+            smoothed.push([y, x]);
+        }
+    }
+    smoothed.push(points[points.length - 1]);
+    return smoothed;
+}
+
+
 function drawPath(pathData) {
     if (!pathData) return;
 
@@ -313,7 +504,7 @@ function drawPath(pathData) {
     }
 
     segments.forEach((segment) => {
-        const layer = L.polyline.antPath(segment.coords, {
+        const layer = L.polyline.antPath(smoothPath(segment.coords), {
             color: "#00E5FF",
             weight: 6,
             delay: 100,
@@ -321,7 +512,9 @@ function drawPath(pathData) {
             pulseColor: "#ffffff",
             paused: false,
             reverse: false,
-            hardwareAccelerated: true
+            hardwareAccelerated: true,
+            lineJoin: 'round',   // rounds the corner where two segments meet
+            lineCap: 'round'
         });
 
         layer.segmentFloor = segment.floor;
@@ -331,6 +524,11 @@ function drawPath(pathData) {
             map.addLayer(layer);
         }
     });
+}
+
+function finishPathfinding(pathData) {
+    drawPath(pathData);
+    setPathfindingMode(false);
 }
 
 function findOfflinePath(start, end) {
@@ -353,7 +551,7 @@ function findOfflinePath(start, end) {
     }
 
     console.log('PATH (offline):', result.path);
-    drawPath(result);
+    finishPathfinding(result);
     alert(`Path found from ${start} to ${end}!`);
     return true;
 }
@@ -376,7 +574,7 @@ function requestPath(start, end) {
             }
 
             console.log('PATH (offline):', result.path);
-            drawPath(result);
+            finishPathfinding(result);
             alert(`✅ Path found from ${start} to ${end}!`);
             return;
         }
@@ -421,7 +619,7 @@ function requestPath(start, end) {
             if (!data) return;
 
             console.log('PATH:', data.path);
-            drawPath(data);
+            finishPathfinding(data);
             alert(`✅ Path found from ${start} to ${end}!`);
         })
         .catch((error) => {
@@ -451,19 +649,11 @@ const compassBtn = document.getElementById('navbtn');
 if (compassBtn) {
     compassBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        pathfindingMode = !pathfindingMode;
 
         if (pathfindingMode) {
-            compassBtn.style.backgroundColor = '#00E5FF';
-            compassBtn.style.color = '#000';
-            compassBtn.style.borderRadius = '8px';
-            compassBtn.style.transition = 'all 0.3s ease';
-            document.getElementById('map').style.cursor = 'crosshair';
+            setPathfindingMode(false);
         } else {
-            compassBtn.style.backgroundColor = 'transparent';
-            compassBtn.style.color = '';
-            document.getElementById('map').style.cursor = '';
-            selected = [];
+            openNavigatePopup();
         }
     });
 } else {
@@ -510,9 +700,8 @@ locations.forEach(function (loc) {
 
             const start = selected[0];
             const end = selected[1];
+            setPathfindingMode(false);
             requestPath(start, end);
-
-            selected = [];
         }
     });
 });
@@ -536,6 +725,7 @@ function switchFloor(floor) {
 
     map.addLayer(floors[currentFloor].image);
     map.addLayer(floors[currentFloor].layer);
+    fitCurrentFloor();
 
     currentPathLayers.forEach((layer) => {
         if (layer.segmentFloor === currentFloor) {
