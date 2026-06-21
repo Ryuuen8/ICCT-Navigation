@@ -6,9 +6,7 @@ from PIL import Image
 # Format: /locate?x=<x_coord>&y=<y_coord>&floor=<floor>&name=<room_name>
 
 locations_to_encode = [
-    {"x": 499.22, "y": 757.31, "floor": 1, "name": "Library"},
-    {"x": 161.14, "y": 400.00, "floor": 1, "name": "Crim-2"},
-    {"x": 846.12, "y": 300.00, "floor": 1, "name": "S-Lab"},
+    {"x": 	288.71, "y": 127.38, "floor": 1, "name": "Testing Room"},
 ]
 
 for loc in locations_to_encode:

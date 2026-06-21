@@ -75,13 +75,30 @@
                         const floor = url.searchParams.get('floor');
                         const name = url.searchParams.get('name');
 
-                        sessionStorage.setItem('scannedLocation', JSON.stringify({
+                        const scanned = {
                             x: parseFloat(x),
                             y: parseFloat(y),
                             floor: parseInt(floor),
                             name: name
-                        }));
+                        };
 
+                        // 🔁 ALWAYS overwrite previous scan (your "cache")
+                        sessionStorage.setItem('scannedLocation', JSON.stringify(scanned));
+
+                        // 🚨 Emergency flow bridge (if triggered before scan)
+                        const pendingEmergency = sessionStorage.getItem('pendingEmergencyRoute');
+                        const pendingDestination = sessionStorage.getItem('pendingNavigationDestination');
+
+                        if (pendingEmergency === 'true' && pendingDestination === 'NEAREST_EMERGENCY') {
+                            sessionStorage.removeItem('pendingEmergencyRoute');
+                            sessionStorage.removeItem('pendingNavigationDestination');
+
+                            window.location.href =
+                                `/map/?start=${encodeURIComponent(name)}&end=NEAREST_EMERGENCY&emergency=true`;
+                            return;
+                        }
+
+                        // normal flow
                         window.location.href = '/map/';
                     } else {
                         window.location.href = scannedUrl;
@@ -89,112 +106,6 @@
                 } catch (err) {
                     console.error('processScannedUrl error:', err);
                     alert('Invalid QR data');
-                }
-            }
-
-            async function scan() {
-                // Use native camera + jsQR to avoid worker import issues
-                if (qrScanner && qrScanner._stream) {
-                    // already scanning: stop
-                    try {
-                        qrScanner._stream.getTracks().forEach(t => t.stop());
-                    } catch (_) {}
-                    qrScanner = null;
-                    const existing = document.getElementById('qr-scanner-temp');
-                    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-                    return;
-                }
-
-                const scannerContainer = document.createElement('div');
-                scannerContainer.id = 'qr-scanner-temp';
-                scannerContainer.style.cssText = `
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    z-index: 10000;
-                    background: rgba(0,0,0,0.85);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    flex-direction: column;
-                `;
-
-                const video = document.createElement('video');
-                video.setAttribute('playsinline', '');
-                video.style.width = '100%';
-                video.style.height = 'auto';
-                video.style.maxWidth = '600px';
-                scannerContainer.appendChild(video);
-
-                const cancelBtn = document.createElement('button');
-                cancelBtn.textContent = 'Cancel';
-                cancelBtn.style.marginTop = '12px';
-                scannerContainer.appendChild(cancelBtn);
-
-                document.body.appendChild(scannerContainer);
-
-                let stream = null;
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-
-                function stopScanning() {
-                    try {
-                        if (stream) stream.getTracks().forEach(t => t.stop());
-                    } catch (e) {}
-                    if (scannerContainer && scannerContainer.parentNode) scannerContainer.parentNode.removeChild(scannerContainer);
-                    qrScanner = null;
-                }
-
-                cancelBtn.addEventListener('click', () => {
-                    stopScanning();
-                });
-
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: 'environment'
-                        }
-                    });
-                    qrScanner = {
-                        _stream: stream
-                    };
-                    video.srcObject = stream;
-                    await video.play();
-
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-
-                    let scanning = true;
-
-                    const tick = () => {
-                        if (!scanning) return;
-                        try {
-                            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                                canvas.width = video.videoWidth;
-                                canvas.height = video.videoHeight;
-                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                                const code = jsQR(imageData.data, canvas.width, canvas.height);
-                                if (code && code.data) {
-                                    scanning = false;
-                                    stopScanning();
-                                    processScannedUrl(code.data);
-                                    return;
-                                }
-                            }
-                        } catch (err) {
-                            console.debug('scan loop error', err);
-                        }
-                        requestAnimationFrame(tick);
-                    };
-
-                    requestAnimationFrame(tick);
-                } catch (err) {
-                    console.error('Camera scan failed', err);
-                    stopScanning();
-                    alert('Camera access failed or not available. Use image upload instead.');
                 }
             }
         </script>
@@ -238,8 +149,8 @@
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/static/js/serviceworker.js', {
-                updateViaCache: 'none'
-            })
+                    updateViaCache: 'none'
+                })
                 .then(reg => {
                     console.log('✅ Service Worker registered:', reg);
                     console.log('Scope:', reg.scope);

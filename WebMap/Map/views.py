@@ -102,24 +102,17 @@ def locate(request):
     return redirect(f"/map/{query_string}")
 
 def pathfind(request):
-    """Handle POST requests to compute a path between two rooms.
-
-    Expects JSON `{ "start": <room>, "end": <room> }` and returns
-    a JSON object with `path` (flat [y,x,floor] coords) and `segments`
-    (grouped by floor) for client rendering.
-    """
     if request.method != "POST":
-        return JsonResponse({
-            "error": "POST request required"
-        }, status=400)
+        return JsonResponse({"error": "POST request required"}, status=400)
 
     try:
-        data = json.loads(request.body or b"{}")
+        request_data = json.loads(request.body or b"{}")
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON body"}, status=400)
 
-    start = data.get("start")
-    end = data.get("end")
+    start = request_data.get("start")
+    end = request_data.get("end")
+    is_emergency = bool(request_data.get("emergency", False))
 
     if not start or not end:
         return JsonResponse({"error": "Missing start or end room"}, status=400)
@@ -127,9 +120,16 @@ def pathfind(request):
     G = nx.DiGraph()
 
     locations = list(Location.objects.all())
+
     stair_x = [loc.x_coordinate for loc in locations if "stair" in loc.room_name.lower()]
     stair_threshold = (min(stair_x) + max(stair_x)) / 2 if stair_x else 0
 
+    emergency_rooms = {
+        loc.room_name for loc in locations
+        if "emergency node" in loc.room_name.lower()
+    }
+
+    # Build nodes
     for loc in locations:
         stair_type = loc.stair_type
         if stair_type is None and "stair" in loc.room_name.lower():
@@ -145,11 +145,11 @@ def pathfind(request):
             stair_type=stair_type,
         )
 
+    # Build edges
     for conn in Connection.objects.all():
         from_floor = conn.from_location.floor_location
         to_floor = conn.to_location.floor_location
 
-        # Add both directions; stair transitions are filtered later
         G.add_edge(
             conn.from_location.room_name,
             conn.to_location.room_name,
@@ -168,24 +168,44 @@ def pathfind(request):
 
     start_floor = G.nodes[start]["pos"][2]
     end_floor = G.nodes[end]["pos"][2]
-    if start_floor < end_floor:
-        allowed_direction = "up"
-    elif start_floor > end_floor:
-        allowed_direction = "down"
-    else:
+
+    same_floor = (start_floor == end_floor)
+
+    # direction rule
+    if same_floor:
         allowed_direction = None
+    else:
+        allowed_direction = (
+            "up" if start_floor < end_floor else "down"
+        )
 
     blocked_rooms = {"Library"}
+    allowed_endpoints = {start, end}
 
     H = nx.DiGraph()
     H.add_nodes_from(G.nodes(data=True))
-    for u, v, data in G.edges(data=True):
-        if u in blocked_rooms and u not in {start, end}:
-            continue
-        if v in blocked_rooms and v not in {start, end}:
+
+    for u, v, edge_data in G.edges(data=True):
+
+        floor_diff = edge_data.get("floor_diff", 0)
+
+        # ❌ BLOCK STAIRS if same floor navigation
+        if same_floor and floor_diff != 0:
             continue
 
-        floor_diff = data.get("floor_diff", 0)
+        # blocked rooms
+        if u in blocked_rooms and u not in allowed_endpoints:
+            continue
+        if v in blocked_rooms and v not in allowed_endpoints:
+            continue
+
+        # emergency filtering
+        if not is_emergency:
+            if u in emergency_rooms and u not in allowed_endpoints:
+                continue
+            if v in emergency_rooms and v not in allowed_endpoints:
+                continue
+
         u_type = G.nodes[u].get("stair_type")
         v_type = G.nodes[v].get("stair_type")
 
@@ -196,26 +216,20 @@ def pathfind(request):
             if floor_diff != 0 and (u_type == "entrance" or v_type == "entrance"):
                 continue
 
-        if floor_diff == 0 or allowed_direction is None:
-            H.add_edge(u, v, **data)
-        elif allowed_direction == "up" and floor_diff > 0:
-            H.add_edge(u, v, **data)
-        elif allowed_direction == "down" and floor_diff < 0:
-            H.add_edge(u, v, **data)
+        H.add_edge(u, v, **edge_data)
 
     def heuristic(a, b):
         ax, ay, af = H.nodes[a]["pos"]
         bx, by, bf = H.nodes[b]["pos"]
-
         return math.hypot(ax - bx, ay - by)
 
-    path = nx.astar_path(
-        H,
-        start,
-        end,
-        heuristic=heuristic,
-        weight="weight"
-    )
+    try:
+        path = nx.astar_path(H, start, end, heuristic=heuristic, weight="weight")
+    except nx.NetworkXNoPath:
+        return JsonResponse(
+            {"error": "No path found between these rooms"},
+            status=404
+        )
 
     full_coords = []
     segments = []
@@ -250,9 +264,11 @@ def pathfind(request):
 
     return JsonResponse({
         "path": full_coords,
-        "segments": segments
+        "segments": segments,
+        "destination": end
     })
-
+    
+    
 def index(request):
     """Render the main index used by the map UI.
 
@@ -483,5 +499,5 @@ def save_connection(request):
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)  
+        return JsonResponse({"error": str(e)}, status=500)    
 #Testing for pathfinding using foliumfrom django.shortcuts import render, redirect

@@ -2,6 +2,7 @@
 console.log("MAP JS LOADED");
 console.log("navbtn at load:", document.getElementById("navbtn"));
 
+
 // --- Use each floor plan's real SVG dimensions for accurate fit/zoom. ---
 // Added defaultZoom + defaultCenter so each floor can open already zoomed in
 // on a specific area instead of always fitting the whole SVG to screen.
@@ -62,12 +63,12 @@ function fitCurrentFloor() {
     map.setMinZoom(computeMinZoom());
     map.setMaxBounds(getPaddedFloorBounds(currentFloor));
 
-    if (plan.defaultZoom !== undefined) {
-        const center = plan.defaultCenter || [plan.height / 2, plan.width / 2];
-        map.setView(center, plan.defaultZoom, { animate: false });
-    } else {
-        map.fitBounds(floors[currentFloor].bounds, getFitBoundsOptions());
-    }
+    // Always zoom to show the entire map
+    map.fitBounds(floors[currentFloor].bounds, {
+        padding: getMapPadding(),
+        animate: false,
+        maxZoom: map.getMinZoom() // This prevents zooming in closer than the min zoom
+    });
 }
 
 function fitCurrentFloorAfterLayout() {
