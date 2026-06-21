@@ -326,10 +326,12 @@
     /* hide the old fmenu-container toggle button — replaced by direct circles */
     .floors-box {
         all: unset;
-        min-width: 76px;
+        width: 44px;
+        /* Fixed width to match height for perfect circle */
         height: 44px;
-        padding: 0 14px;
-        border-radius: 999px;
+        /* Same as width for perfect circle */
+        border-radius: 50%;
+        /* Makes it a perfect circle */
         background: rgba(255, 255, 255, 0.96);
         box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
         display: flex;
@@ -340,6 +342,24 @@
         font-weight: 800;
         color: #04145d;
         user-select: none;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+        /* Prevents shrinking in flex layouts */
+    }
+
+    .floors-box:hover {
+        transform: scale(1.08);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+    }
+
+    .floors-box:active {
+        transform: scale(0.94);
+    }
+
+    .floors-box.active {
+        background: #04145d;
+        color: #ffffff;
+        box-shadow: 0 4px 16px rgba(4, 20, 93, 0.45);
     }
 
     .floor-menu {
@@ -348,8 +368,6 @@
         gap: 8px;
         padding: 8px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.72);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
         backdrop-filter: blur(16px);
     }
 
