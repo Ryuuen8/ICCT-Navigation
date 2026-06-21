@@ -600,7 +600,7 @@
     (function() {
         // ✅ CORRECT: Use the actual database name of your emergency exit
         const EMERGENCY_EXIT_NAME = 'EMERGENCY EXIT 1';
-        const FLOOR_MAP_URL = "{% url 'floormap' %}";
+        const FLOOR_MAP_URL = "{% url 'map' %}";
 
         const popup = document.getElementById('emergencyPopup');
         const emergencyCard = document.getElementById('emergency-card');
@@ -702,99 +702,5 @@
             updateLocationDisplay();
         }
     })();
-</script>
-<!-- Quick Access Button Handlers -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Floor Maps button
-        document.getElementById('floor-btn')?.addEventListener('click', function() {
-            document.getElementById('test').style.display = 'flex';
-        });
-
-        // Assembly Point button
-        document.getElementById('assembly-btn')?.addEventListener('click', function() {
-            document.getElementById('assemblyPopup').classList.add('active');
-        });
-
-        // Safety Tips button
-        document.getElementById('safety-btn')?.addEventListener('click', function() {
-            document.getElementById('safetyPopup').classList.add('active');
-        });
-
-        // Contact Security button
-        document.getElementById('contact-btn')?.addEventListener('click', function() {
-            document.getElementById('contactPopup').classList.add('active');
-        });
-
-        // Report Hazard button
-        document.getElementById('hazard-btn')?.addEventListener('click', function() {
-            document.getElementById('hazardPopup').classList.add('active');
-        });
-
-        // Announcement button
-        document.getElementById('announcement-btn')?.addEventListener('click', function() {
-            document.getElementById('announcementPopup').classList.add('active');
-        });
-
-        // Close buttons
-        document.getElementById('closePopupBtn')?.addEventListener('click', function() {
-            document.getElementById('test').style.display = 'none';
-        });
-
-        document.getElementById('closeAssemblyBtn')?.addEventListener('click', function() {
-            document.getElementById('assemblyPopup').classList.remove('active');
-        });
-
-        document.getElementById('closeSafetyBtn')?.addEventListener('click', function() {
-            document.getElementById('safetyPopup').classList.remove('active');
-        });
-
-        document.getElementById('closeContactBtn')?.addEventListener('click', function() {
-            document.getElementById('contactPopup').classList.remove('active');
-        });
-
-        document.getElementById('closeHazardBtn')?.addEventListener('click', function() {
-            document.getElementById('hazardPopup').classList.remove('active');
-        });
-
-        document.getElementById('closeAnnouncementBtn')?.addEventListener('click', function() {
-            document.getElementById('announcementPopup').classList.remove('active');
-        });
-
-        document.getElementById('announcementOkBtn')?.addEventListener('click', function() {
-            document.getElementById('announcementPopup').classList.remove('active');
-        });
-
-        document.getElementById('assemblyOkBtn')?.addEventListener('click', function() {
-            document.getElementById('assemblyPopup').classList.remove('active');
-        });
-
-        document.getElementById('safetyOkBtn')?.addEventListener('click', function() {
-            document.getElementById('safetyPopup').classList.remove('active');
-        });
-
-        document.getElementById('contactOkBtn')?.addEventListener('click', function() {
-            document.getElementById('contactPopup').classList.remove('active');
-        });
-
-        document.getElementById('hazardCancelBtn')?.addEventListener('click', function() {
-            document.getElementById('hazardPopup').classList.remove('active');
-        });
-
-        // Popup close for floor selection
-        document.getElementById('test')?.addEventListener('click', function(e) {
-            if (e.target === this) {
-                this.style.display = 'none';
-            }
-        });
-
-        // Floor selection cards
-        document.querySelectorAll('.popup-floor-card').forEach(card => {
-            card.addEventListener('click', function() {
-                const floor = this.dataset.floor;
-                window.location.href = `/map/?floor=${floor}`;
-            });
-        });
-    });
 </script>
 {% endblock content %}
