@@ -3,12 +3,19 @@ console.log("MAP JS LOADED");
 console.log("navbtn at load:", document.getElementById("navbtn"));
 
 // --- Use each floor plan's real SVG dimensions for accurate fit/zoom. ---
+// Added defaultZoom + defaultCenter so each floor can open already zoomed in
+// on a specific area instead of always fitting the whole SVG to screen.
+// - defaultZoom: the Leaflet zoom level to open this floor at.
+// - defaultCenter: [y, x] point (same coordinate space as the bottom-left
+//   "Y / X" readout already in this file) to center the view on.
+// Leave both undefined on a floor to fall back to the old fitBounds(whole
+// image) behavior.
 const floorPlans = {
-    1: { imageUrl: '/static/images/1.svg', width: 934, height: 817 },
-    2: { imageUrl: '/static/images/2.svg', width: 920, height: 639 },
-    3: { imageUrl: '/static/images/3.svg', width: 920, height: 636 },
-    4: { imageUrl: '/static/images/4.svg', width: 920, height: 635 },
-    5: { imageUrl: '/static/images/5.svg', width: 918, height: 636 }
+    1: { imageUrl: '/static/images/1.svg', width: 934, height: 817, defaultZoom: 1.4954560748550518, defaultCenter: [241.17471666211208, 455.7492807511971,] },
+    2: { imageUrl: '/static/images/2.svg', width: 920, height: 639, defaultZoom: 1.498296103390921, defaultCenter: [222.64788599801707, 472.9055257445959] },
+    3: { imageUrl: '/static/images/3.svg', width: 920, height: 636, defaultZoom: 0, defaultCenter: [320, 460] },
+    4: { imageUrl: '/static/images/4.svg', width: 920, height: 635, defaultZoom: 0, defaultCenter: [320, 460] },
+    5: { imageUrl: '/static/images/5.svg', width: 918, height: 636, defaultZoom: 0, defaultCenter: [320, 460] }
 };
 
 // In L.CRS.Simple, bounds are [[y_min, x_min], [y_max, x_max]]
@@ -45,10 +52,22 @@ function getFitBoundsOptions() {
     };
 }
 
+// --- Default-view aware. If the current floor defines a defaultZoom, open
+//     on that zoom/center instead of fitting the entire SVG to the screen.
+//     minZoom/maxBounds are still computed from the full image so the user
+//     can always zoom back out to see everything and can't pan off the map. ---
 function fitCurrentFloor() {
+    const plan = floorPlans[currentFloor] || floorPlans[1];
+
     map.setMinZoom(computeMinZoom());
     map.setMaxBounds(getPaddedFloorBounds(currentFloor));
-    map.fitBounds(floors[currentFloor].bounds, getFitBoundsOptions());
+
+    if (plan.defaultZoom !== undefined) {
+        const center = plan.defaultCenter || [plan.height / 2, plan.width / 2];
+        map.setView(center, plan.defaultZoom, { animate: false });
+    } else {
+        map.fitBounds(floors[currentFloor].bounds, getFitBoundsOptions());
+    }
 }
 
 function fitCurrentFloorAfterLayout() {
@@ -189,6 +208,71 @@ function setNavigateButtonActive(active) {
     }
 }
 
+// PATH-FOUND TOAST (replaces the plain alert() shown when a route finishes)
+function dismissPathFoundToast(toast) {
+    if (!toast) return;
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(8px)';
+    setTimeout(() => toast.remove(), 250);
+}
+
+function showPathFoundToast(destinationName) {
+    const destination = findLocationByName(destinationName);
+    const roomName = destination ? destination.room_name : destinationName;
+    const floorLabel = destination ? `Floor ${destination.floor}` : '';
+
+    const existing = document.getElementById('pathfound-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'pathfound-toast';
+    toast.innerHTML = `
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(0,229,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-route" style="color:#00E5FF;font-size:16px;"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;letter-spacing:1px;color:#94A3B8;text-transform:uppercase;">Path found</div>
+            <div style="font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(roomName)}</div>
+            ${floorLabel ? `<div style="font-size:12px;color:#7DD3FC;margin-top:2px;">${escapeHtml(floorLabel)}</div>` : ''}
+        </div>
+        <button type="button" aria-label="Close" style="background:none;border:none;color:#94A3B8;cursor:pointer;font-size:14px;padding:4px;line-height:1;">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    `;
+
+    Object.assign(toast.style, {
+        position: 'fixed',
+        bottom: '110px',
+        left: '50%',
+        transform: 'translateX(-50%) translateY(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        background: 'rgba(15, 23, 42, 0.97)',
+        padding: '12px 16px',
+        borderRadius: '14px',
+        border: '1px solid rgba(0,229,255,0.4)',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+        zIndex: 2000,
+        fontFamily: "'Helvetica Neue', Arial, sans-serif",
+        maxWidth: '320px',
+        opacity: '0',
+        transition: 'opacity 0.25s ease, transform 0.25s ease'
+    });
+
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(-50%) translateY(0)';
+    });
+
+    toast.querySelector('button').addEventListener('click', () => dismissPathFoundToast(toast));
+
+    clearTimeout(toast._dismissTimer);
+    toast._dismissTimer = setTimeout(() => dismissPathFoundToast(toast), 4000);
+}
+
 function closeNavigatePopup() {
     const existingPopup = document.getElementById('navigate-choice-popup');
     if (existingPopup) {
@@ -257,34 +341,34 @@ function openNavigatePopup() {
     popup.id = 'navigate-choice-popup';
     popup.className = 'navigate-choice-popup';
     popup.innerHTML = `
-        <div class="navigate-choice-header">
-            <strong>Navigate</strong>
-            <button type="button" class="navigate-choice-close" aria-label="Close">
-                <i class="fa-solid fa-xmark"></i>
+            <div class="navigate-choice-header">
+                <strong>Navigate</strong>
+                <button type="button" class="navigate-choice-close" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <button type="button" class="navigate-choice-option" data-nav-mode="manual">
+                <i class="fa-solid fa-hand-pointer"></i>
+                <span>Manual path</span>
             </button>
-        </div>
-        <button type="button" class="navigate-choice-option" data-nav-mode="manual">
-            <i class="fa-solid fa-hand-pointer"></i>
-            <span>Manual path</span>
-        </button>
-        <form class="navigate-choice-form">
-            <label for="navigateDestination">Destination</label>
-            <input
-                id="navigateDestination"
-                type="text"
-                list="navigateDestinationList"
-                placeholder="Search destination"
-                autocomplete="off"
-            >
-            <datalist id="navigateDestinationList">
-                ${createDestinationOptions()}
-            </datalist>
-            <button type="submit" class="navigate-choice-option navigate-choice-scan">
-                <i class="fa-solid fa-qrcode"></i>
-                <span>Scan QR</span>
-            </button>
-        </form>
-    `;
+            <form class="navigate-choice-form">
+                <label for="navigateDestination">Destination</label>
+                <input
+                    id="navigateDestination"
+                    type="text"
+                    list="navigateDestinationList"
+                    placeholder="Search destination"
+                    autocomplete="off"
+                >
+                <datalist id="navigateDestinationList">
+                    ${createDestinationOptions()}
+                </datalist>
+                <button type="submit" class="navigate-choice-option navigate-choice-scan">
+                    <i class="fa-solid fa-qrcode"></i>
+                    <span>Scan QR</span>
+                </button>
+            </form>
+        `;
 
     document.body.appendChild(popup);
 
@@ -369,13 +453,13 @@ function handleScannedLocation() {
         });
 
         marker.bindPopup(`
-            <div style="text-align: center; padding: 10px;">
-                <strong>${location.name || 'QR Location'}</strong><br>
-                X: ${location.x.toFixed(2)}<br>
-                Y: ${location.y.toFixed(2)}<br>
-                Floor: ${location.floor}
-            </div>
-        `);
+                <div style="text-align: center; padding: 10px;">
+                    <strong>${location.name || 'QR Location'}</strong><br>
+                    X: ${location.x.toFixed(2)}<br>
+                    Y: ${location.y.toFixed(2)}<br>
+                    Floor: ${location.floor}
+                </div>
+            `);
 
         floors[location.floor].layer.addLayer(marker);
         marker.openPopup();
@@ -462,38 +546,6 @@ function getFirstPathFloor(pathData) {
     return null;
 }
 
-function smoothPath(points, segments = 8) {
-    if (points.length < 3) return points;
-
-    const smoothed = [];
-    for (let i = 0; i < points.length - 1; i++) {
-        const p0 = points[i - 1] || points[i];
-        const p1 = points[i];
-        const p2 = points[i + 1];
-        const p3 = points[i + 2] || p2;
-
-        for (let t = 0; t < segments; t++) {
-            const tt = t / segments;
-            const tt2 = tt * tt;
-            const tt3 = tt2 * tt;
-
-            const x = 0.5 * ((2 * p1[1]) +
-                (-p0[1] + p2[1]) * tt +
-                (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * tt2 +
-                (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * tt3);
-
-            const y = 0.5 * ((2 * p1[0]) +
-                (-p0[0] + p2[0]) * tt +
-                (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * tt2 +
-                (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * tt3);
-
-            smoothed.push([y, x]);
-        }
-    }
-    smoothed.push(points[points.length - 1]);
-    return smoothed;
-}
-
 
 function drawPath(pathData) {
     if (!pathData) return;
@@ -519,7 +571,7 @@ function drawPath(pathData) {
     }
 
     segments.forEach((segment) => {
-        const layer = L.polyline.antPath(smoothPath(segment.coords), {
+        const layer = L.polyline.antPath((segment.coords), {
             color: "#00E5FF",
             weight: 6,
             delay: 100,
@@ -567,7 +619,7 @@ function findOfflinePath(start, end) {
 
     console.log('PATH (offline):', result.path);
     finishPathfinding(result);
-    alert(`Path found from ${start} to ${end}!`);
+    showPathFoundToast(end);
     return true;
 }
 
@@ -590,7 +642,7 @@ function requestPath(start, end) {
 
             console.log('PATH (offline):', result.path);
             finishPathfinding(result);
-            alert(`✅ Path found from ${start} to ${end}!`);
+            showPathFoundToast(end);
             return;
         }
     }
@@ -635,7 +687,7 @@ function requestPath(start, end) {
 
             console.log('PATH:', data.path);
             finishPathfinding(data);
-            alert(`✅ Path found from ${start} to ${end}!`);
+            showPathFoundToast(end);
         })
         .catch((error) => {
             console.error('FETCH ERROR:', error);
@@ -705,8 +757,8 @@ locations.forEach(function (loc) {
 
         if (selected.length === 1) {
             polygon.bindPopup(`
-                BACOOR
-                `).openPopup();
+                    BACOOR
+                    `).openPopup();
             setTimeout(() => polygon.closePopup(), 1500);
         }
 
@@ -843,12 +895,12 @@ document.addEventListener('DOMContentLoaded', function () {
                             searchMarkerLayer.addLayer(currentMarker);
 
                             currentMarker.bindPopup(`
-                                <div style="text-align: center; padding: 10px;">
-                                    <strong>📍 ${loc.room_name}</strong><br>
-                                    Floor: ${loc.floor}<br>
-                                    <small>Search result</small>
-                                </div>
-                            `).openPopup();
+                                    <div style="text-align: center; padding: 10px;">
+                                        <strong>📍 ${loc.room_name}</strong><br>
+                                        Floor: ${loc.floor}<br>
+                                        <small>Search result</small>
+                                    </div>
+                                `).openPopup();
 
                             const markerToClear = currentMarker;
                             currentMarkerTimeout = setTimeout(() => {
@@ -915,4 +967,4 @@ function urlOutside() {
     }
 }
 
-urlOutside();
+urlOutside();   

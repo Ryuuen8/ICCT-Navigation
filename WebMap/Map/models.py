@@ -10,7 +10,7 @@ class Location(models.Model):
     ]
 
     floor_location = models.IntegerField(default=1)
-    room_name = models.TextField(max_length=20)
+    room_name = models.TextField(max_length=100)
     stair_type = models.CharField(
         max_length=10,
         choices=STAIR_TYPE_CHOICES,

@@ -23,6 +23,7 @@ urlpatterns = [
     path('submit-report/', views.announcement, name="report"),
     path('search/', views.search, name="search"),
     path('save-room/', views.save_room, name="save-room"),
+    path('save-connection/', views.save_connection, name='save-nodes'),
     path('pathfind/', views.pathfind, name="pathfind"),
     path('api/', include(router.urls)),
 

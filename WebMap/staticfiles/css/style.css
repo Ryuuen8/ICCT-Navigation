@@ -313,29 +313,48 @@
         top: 50%;
         transform: translateY(-50%);
         z-index: 1001;
+    }
+
+    .fmenu-container {
+        position: relative;
         display: flex;
         flex-direction: column;
+        align-items: flex-start;
         gap: 8px;
     }
 
     /* hide the old fmenu-container toggle button — replaced by direct circles */
     .floors-box {
-        display: none;
+        all: unset;
+        min-width: 76px;
+        height: 44px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 800;
+        color: #04145d;
+        user-select: none;
     }
 
     .floor-menu {
-        position: static;
-        opacity: 1;
-        transform: none;
-        pointer-events: auto;
-        background: none;
-        border-radius: 0;
-        padding: 0;
-        box-shadow: none;
-        display: flex;
+        display: none;
         flex-direction: column;
         gap: 8px;
-        width: auto;
+        padding: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+        backdrop-filter: blur(16px);
+    }
+
+    .floor-menu.show {
+        display: flex;
     }
 
     /* each floor = its own circle */

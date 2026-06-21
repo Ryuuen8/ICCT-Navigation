@@ -379,23 +379,109 @@ def admin_management(request):
 @login_required
 @user_passes_test(staff_check)
 def save_room(request):
-    """Save room polygons from the map editor.
+    if request.method != "POST":
+        return JsonResponse({"error": "invalid method"}, status=400)
 
-    Expects POST JSON with `rooms` array; creates `Location` rows.
-    """
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+        rooms = data.get("rooms", [])
 
-    if request.method == "POST":
+        if not rooms:
+            return JsonResponse({"error": "No rooms provided"}, status=400)
 
-        data = json.loads(request.body)
+        created = 0
 
-        for room in data["rooms"]:
+        for room in rooms:
+            room_name = room.get("room_name")
+            floor = room.get("floor")
+            x = room.get("center_x")
+            y = room.get("center_y")
+            polygon = room.get("polygon")
+
+            # safety check (THIS PREVENTS 500s)
+            if None in [room_name, floor, x, y, polygon]:
+                continue
+
             Location.objects.create(
-                room_name=room["room_name"],
-                x_coordinate=room["center_x"],
-                y_coordinate=room["center_y"],
-                coordinates=room["polygon"]
+                room_name=room_name,
+                floor_location=floor,
+                x_coordinate=x,
+                y_coordinate=y,
+                coordinates=polygon
             )
 
-        return JsonResponse({"status": "saved"})
+            created += 1
 
+        return JsonResponse({
+            "status": "saved",
+            "created": created
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            "error": "server crash",
+            "detail": str(e)
+        }, status=500)    
+@csrf_exempt  # remove if you're already handling CSRF properly
+def save_connection(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "invalid method"}, status=400)
+
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+
+        from_room = data.get("from_room")
+        to_room = data.get("to_room")
+
+        from_x = data.get("from_x")
+        from_y = data.get("from_y")
+        to_x = data.get("to_x")
+        to_y = data.get("to_y")
+
+        # -----------------------------
+        # BASIC VALIDATION
+        # -----------------------------
+        if not from_room or not to_room:
+            return JsonResponse({"error": "Missing room names"}, status=400)
+
+        # -----------------------------
+        # FIND OBJECTS
+        # -----------------------------
+        try:
+            from_obj = Location.objects.get(room_name=from_room)
+            to_obj = Location.objects.get(room_name=to_room)
+        except Location.DoesNotExist:
+            return JsonResponse({"error": "Room not found"}, status=404)
+
+        # -----------------------------
+        # OPTIONAL: compute cost if not provided
+        # -----------------------------
+        cost = data.get("cost")
+
+        if cost is None:
+            # fallback: simple euclidean distance
+            try:
+                cost = ((to_x - from_x) ** 2 + (to_y - from_y) ** 2) ** 0.5
+            except Exception:
+                cost = 1.0
+
+        # -----------------------------
+        # CREATE CONNECTION
+        # -----------------------------
+        conn = Connection.objects.create(
+            from_location=from_obj,
+            to_location=to_obj,
+            cost=float(cost)
+        )
+
+        return JsonResponse({
+            "status": "saved",
+            "connection_id": conn.id
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)  
 #Testing for pathfinding using foliumfrom django.shortcuts import render, redirect

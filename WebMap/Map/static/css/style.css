@@ -313,29 +313,66 @@
         top: 50%;
         transform: translateY(-50%);
         z-index: 1001;
+    }
+
+    .fmenu-container {
+        position: relative;
         display: flex;
         flex-direction: column;
+        align-items: flex-start;
         gap: 8px;
     }
 
     /* hide the old fmenu-container toggle button — replaced by direct circles */
     .floors-box {
-        display: none;
+        all: unset;
+        width: 44px;
+        /* Fixed width to match height for perfect circle */
+        height: 44px;
+        /* Same as width for perfect circle */
+        border-radius: 50%;
+        /* Makes it a perfect circle */
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 800;
+        color: #04145d;
+        user-select: none;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        flex-shrink: 0;
+        /* Prevents shrinking in flex layouts */
+    }
+
+    .floors-box:hover {
+        transform: scale(1.08);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+    }
+
+    .floors-box:active {
+        transform: scale(0.94);
+    }
+
+    .floors-box.active {
+        background: #04145d;
+        color: #ffffff;
+        box-shadow: 0 4px 16px rgba(4, 20, 93, 0.45);
     }
 
     .floor-menu {
-        position: static;
-        opacity: 1;
-        transform: none;
-        pointer-events: auto;
-        background: none;
-        border-radius: 0;
-        padding: 0;
-        box-shadow: none;
-        display: flex;
+        display: none;
         flex-direction: column;
         gap: 8px;
-        width: auto;
+        padding: 8px;
+        border-radius: 999px;
+        backdrop-filter: blur(16px);
+    }
+
+    .floor-menu.show {
+        display: flex;
     }
 
     /* each floor = its own circle */

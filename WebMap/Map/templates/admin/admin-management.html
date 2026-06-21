@@ -28,6 +28,8 @@
                 --navy-light: rgba(4, 20, 93, 0.08);
                 --red: #e10600;
                 --accent: #2563eb;
+                --orange: #ea580c;
+                --orange-light: rgba(234, 88, 12, 0.10);
                 --bg: #f0f2f8;
                 --surface: #ffffff;
                 --surface2: #f7f9ff;
@@ -137,6 +139,8 @@
                 font-size: 0.9rem;
             }
 
+
+
             /* MAIN */
             .main {
                 margin-left: 240px;
@@ -157,6 +161,8 @@
                 position: sticky;
                 top: 0;
                 z-index: 50;
+                flex-wrap: wrap;
+                gap: 8px;
             }
 
             .topbar-title {
@@ -176,6 +182,15 @@
                 display: flex;
                 gap: 10px;
                 align-items: center;
+                flex-wrap: wrap;
+                padding: 8px 0;
+            }
+
+            .action-divider {
+                width: 1px;
+                height: 22px;
+                background: var(--border);
+                margin: 0 2px;
             }
 
             .btn {
@@ -218,6 +233,20 @@
 
             .btn-ghost:hover {
                 background: rgba(4, 20, 93, 0.14);
+            }
+
+            .btn-orange {
+                background: var(--orange-light);
+                color: var(--orange);
+            }
+
+            .btn-orange:hover {
+                background: rgba(234, 88, 12, 0.18);
+            }
+
+            .btn-orange.active {
+                background: var(--orange);
+                color: #fff;
             }
 
             /* CONTENT */
@@ -386,11 +415,52 @@
                     <i class="fa-solid fa-draw-polygon"></i> Indoor Map Editor
                 </span>
                 <div class="topbar-actions">
-                    <button class="btn btn-ghost" onclick="clearDrawings()">
+                    <!-- Rooms -->
+                    <button id="connectBtn">Connect Rooms</button>
+                    <button class="btn btn-ghost"
+                            onclick="loadRooms()"
+                            title="Load saved rooms for this floor">
+                        <i class="fa-solid fa-rotate"></i> Load Rooms
+                    </button>
+                    <button class="btn btn-ghost"
+                            onclick="clearAllPolygons()"
+                            title="Clear all room shapes on this floor">
                         <i class="fa-solid fa-eraser"></i> Clear
                     </button>
-                    <button class="btn btn-success" onclick="saveRooms()">
+                    <button class="btn btn-success"
+                            onclick="saveRooms()"
+                            title="Save drawn rooms to the database">
                         <i class="fa-solid fa-floppy-disk"></i> Save Rooms
+                    </button>
+                    <div class="action-divider"></div>
+                    <!-- Copy / paste a selected room shape -->
+                    <button class="btn btn-ghost"
+                            onclick="copySelectedPolygon()"
+                            title="Copy the selected room's shape (Ctrl+C)">
+                        <i class="fa-solid fa-copy"></i> Copy
+                    </button>
+                    <button class="btn btn-ghost"
+                            onclick="pasteCopiedPolygon()"
+                            title="Paste a duplicate of the copied shape (Ctrl+V)">
+                        <i class="fa-solid fa-paste"></i> Paste
+                    </button>
+                    <div class="action-divider"></div>
+                    <!-- Hallway / waypoint nodes -->
+                    <button class="btn btn-orange"
+                            id="addNodeBtn"
+                            onclick="handleToggleNodePlacement()"
+                            title="Click map to drop hallway nodes">
+                        <i class="fa-solid fa-circle-dot"></i> Add Node
+                    </button>
+                    <button class="btn btn-ghost"
+                            onclick="loadNodes()"
+                            title="Load saved hallway nodes for this floor">
+                        <i class="fa-solid fa-rotate"></i> Load Nodes
+                    </button>
+                    <button class="btn btn-success"
+                            onclick="saveNodes()"
+                            title="Save hallway nodes to the database">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Nodes
                     </button>
                 </div>
             </div>
@@ -479,12 +549,27 @@
                     const floor = parseInt(btn.dataset.floor);
                     document.getElementById('floor-badge').textContent = `Floor ${floor}`;
                     if (typeof switchFloor === 'function') switchFloor(floor);
+
+                    // Leaving the floor implicitly exits node-placement mode
+                    setNodeButtonActive(false);
                 });
             });
 
-            function clearDrawings() {
-                if (typeof drawnItems !== 'undefined') drawnItems.clearLayers();
-                showToast('Drawings cleared');
+            // Keep the "Add Node" button's active/inactive look in sync with
+            // admin-map.js's isNodePlacementMode, and toggle it on click.
+            function setNodeButtonActive(active) {
+                const btn = document.getElementById('addNodeBtn');
+                if (!btn) return;
+                btn.classList.toggle('active', active);
+                btn.innerHTML = active ?
+                    '<i class="fa-solid fa-xmark"></i> Click Map to Place' :
+                    '<i class="fa-solid fa-circle-dot"></i> Add Node';
+            }
+
+            function handleToggleNodePlacement() {
+                if (typeof toggleNodePlacement !== 'function') return;
+                toggleNodePlacement();
+                setNodeButtonActive(typeof isNodePlacementMode !== 'undefined' ? isNodePlacementMode : false);
             }
         </script>
     </body>
