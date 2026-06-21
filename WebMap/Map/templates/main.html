@@ -11,7 +11,7 @@
     <script type="module" src="{% static "js/mainscript.js" %}"></script>
     <style>
         /* Self-contained styles for the new emergency popup so it works
-           regardless of how main.css handles the other overlays. */
+                    regardless of how main.css handles the other overlays. */
         #emergencyPopup {
             display: none;
         }
@@ -507,9 +507,11 @@
 <!-- EMERGENCY POPUP LOGIC (self-contained — doesn't depend on mainscript.js) -->
 <script>
     (function() {
+        // 🛠️ DEFINED SYSTEM CONSTANTS
         const EMERGENCY_DESTINATION = 'NEAREST_EMERGENCY';
         const FLOOR_MAP_URL = "{% url 'floormap' %}";
 
+        // DOM Element Selectors
         const popup = document.getElementById('emergencyPopup');
         const emergencyCard = document.getElementById('emergency-card');
         const closeBtn = document.getElementById('closeEmergencyBtn');
@@ -520,12 +522,27 @@
         const allExitsBtn = document.getElementById('emergencyAllExitsBtn');
         const lastScanDetail = document.getElementById('emergencyLastScanDetail');
 
+        // Helper: Safe Extraction of Session Storage items
         function getLastKnownLocation() {
             try {
                 const raw = sessionStorage.getItem('scannedLocation');
                 return raw ? JSON.parse(raw) : null;
-            } catch {
+            } catch (e) {
+                console.error("Error reading scannedLocation from sessionStorage:", e);
                 return null;
+            }
+        }
+
+        // Dynamically Updates Dashboard UI elements if they are present
+        function updateLocationDisplayUI(locationObj) {
+            const locNameEl = document.getElementById('current-location-name');
+            const locDetailEl = document.getElementById('current-location-detail');
+            const locDotEl = document.getElementById('location-dot');
+
+            if (locationObj && locationObj.name) {
+                if (locNameEl) locNameEl.textContent = locationObj.name;
+                if (locDetailEl) locDetailEl.textContent = `Floor ${locationObj.floor || 'N/A'} — Room/Area Verified`;
+                if (locDotEl) locDotEl.style.background = "#2ec4b6"; // Active green/teal badge color
             }
         }
 
@@ -533,12 +550,14 @@
             const last = getLastKnownLocation();
 
             if (last && last.name) {
-                lastScanDetail.textContent =
-                    `Route from "${last.name}" (Floor ${last.floor}).`;
+                // Render location parameters straight to the user prompt view safely
+                lastScanDetail.textContent = `Route from "${last.name}" (Floor ${last.floor}).`;
                 lastScanBtn.classList.remove('disabled');
+
+                // Fallback synchronization check for main screen UI display card
+                updateLocationDisplayUI(last);
             } else {
-                lastScanDetail.textContent =
-                    'No scanned location yet — scan a QR code first.';
+                lastScanDetail.textContent = 'No scanned location yet — scan a QR code first.';
                 lastScanBtn.classList.add('disabled');
             }
 
@@ -551,38 +570,40 @@
             popup.setAttribute('aria-hidden', 'true');
         }
 
-        // 🚨 1. LAST SCANNED LOCATION → NEAREST EXIT
+        // 🚨 1. USE LAST SCANNED LOCATION → ROUTE TO EMERGENCY EXIT
         function goFromLastScan() {
             const last = getLastKnownLocation();
 
             if (!last || !last.name) {
-                alert('No scanned location found.');
+                alert('No scanned location found. Please scan a code first.');
                 return;
             }
 
-            window.location.href =
-                `/map/?start=${encodeURIComponent(last.name)}&end=${EMERGENCY_EXIT_1}&emergency=true`;
+            // Fixed fallback route generation cleanly parsing destination points
+            window.location.href = `${FLOOR_MAP_URL}?start=${encodeURIComponent(last.name)}&end=${encodeURIComponent(EMERGENCY_DESTINATION)}&emergency=true`;
         }
 
-        // 🚨 2. SCAN NEW LOCATION → THEN ROUTE
+        // 🚨 2. SCAN NEW LOCATION → REDIRECT WITH PENDING ACTIONS
         function goFromNewScan() {
-            sessionStorage.setItem('pendingNavigationDestination', EMERGENCY_EXIT_1);
+            sessionStorage.setItem('pendingNavigationDestination', EMERGENCY_DESTINATION);
             sessionStorage.setItem('pendingEmergencyRoute', 'true');
+            sessionStorage.setItem('EMERGENCY_SCAN_MODE', 'true');
 
+            // If an active hardware scan event instance exists in the app module scope, call it
             if (typeof scan === 'function') {
                 scan();
             } else {
-                window.location.href =
-                    `/map/?emergency=true&promptScan=true`;
+                // Otherwise fallback directly onto loading map logic processing state triggers
+                window.location.href = `${FLOOR_MAP_URL}?emergency=true&promptScan=true`;
             }
         }
 
-        // 🚨 3. ALL EXITS VIEW (FIXED)
+        // 🚨 3. ALL EXITS MAP OVERVIEW VIEW
         function goToAllFloorExits() {
-            window.location.href =
-                `/map/?emergency=true&showAllExits=true`;
+            window.location.href = `${FLOOR_MAP_URL}?emergency=true&showAllExits=true`;
         }
 
+        // Event Binding Setup
         emergencyCard.addEventListener('click', openEmergencyPopup);
         closeBtn.addEventListener('click', closeEmergencyPopup);
         cancelBtn.addEventListener('click', closeEmergencyPopup);
@@ -591,9 +612,17 @@
             if (e.target === popup) closeEmergencyPopup();
         });
 
-        lastScanBtn.addEventListener('click', goFromLastScan);
+        lastScanBtn.addEventListener('click', function(e) {
+            if (!this.classList.contains('disabled')) {
+                goFromLastScan();
+            }
+        });
+
         scanNowBtn.addEventListener('click', goFromNewScan);
         allExitsBtn.addEventListener('click', goToAllFloorExits);
+
+        // Run an instant automated UI lifecycle frame sync check upon startup initialization
+        updateLocationDisplayUI(getLastKnownLocation());
     })();
 </script>
 {% endblock content %}
