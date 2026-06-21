@@ -28,34 +28,12 @@
         #emergencyPopup .announcement-item {
             cursor: pointer;
         }
-
-        /* Pulse animation for location dot */
-        @keyframes pulse-dot {
-            0% {
-                transform: scale(1);
-                opacity: 1;
-            }
-
-            50% {
-                transform: scale(1.2);
-                opacity: 0.7;
-            }
-
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-
-        .dot.pulse {
-            animation: pulse-dot 1.5s ease-in-out infinite;
-        }
-
-        .dot.scanned {
-            background: #00E5FF !important;
-            box-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
-        }
     </style>
+    <script>
+        function toggleAnnouncement(el) {
+            el.classList.toggle('open');
+        }
+    </script>
     <body>
         <div class="app">
             <!-- HEADER -->
@@ -92,19 +70,19 @@
                         <i class="fa-solid fa-map-location-dot"></i>
                         <span>Floor Maps</span>
                     </div>
-                    <div class="quick-item" id="assembly-btn">
+                    <div class="quick-item">
                         <i class="fa-solid fa-people-group"></i>
                         <span>Assembly Point</span>
                     </div>
-                    <div class="quick-item" id="safety-btn">
+                    <div class="quick-item">
                         <i class="fa-solid fa-shield-heart"></i>
                         <span>Safety Tips</span>
                     </div>
-                    <div class="quick-item" id="contact-btn">
+                    <div class="quick-item">
                         <i class="fa-solid fa-phone"></i>
                         <span>Contact Security</span>
                     </div>
-                    <div class="quick-item" id="hazard-btn">
+                    <div class="quick-item">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <span>Report Hazard</span>
                     </div>
@@ -116,21 +94,12 @@
                 </div>
             </section>
             <!-- LOCATION CARD -->
-            <section class="location-card" id="location-card">
+            <section class="location-card">
                 <div class="dot" id="location-dot" style="background:#ccc;"></div>
                 <div>
                     <small>CURRENT LOCATION</small>
                     <h3 id="current-location-name">No Location Scanned</h3>
                     <p id="current-location-detail">Scan a QR code to get your location</p>
-                    <button id="clear-location-btn"
-                            style="display:none;
-                                   margin-top:8px;
-                                   background:none;
-                                   border:none;
-                                   color:#999;
-                                   font-size:12px;
-                                   cursor:pointer;
-                                   text-decoration:underline">Clear location</button>
                 </div>
             </section>
             <!-- POPUP - Floor Selection -->
@@ -318,490 +287,313 @@
                 </div>
             </div>
             <!-- end emergency popup -->
-            <!-- HAZARD POPUP -->
-            <div id="hazardPopup" class="announcement-overlay" aria-hidden="true">
-                <div class="announcement-panel"
-                     role="dialog"
-                     aria-modal="true"
-                     aria-labelledby="hazardTitle">
-                    <div class="announcement-header">
-                        <div class="announcement-badge">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                            <span>Report Hazard</span>
-                        </div>
-                        <button class="announcement-close"
-                                id="closeHazardBtn"
-                                type="button"
-                                aria-label="Close">×</button>
-                    </div>
-                    <div class="announcement-content">
-                        <p class="announcement-eyebrow">Safety Alert</p>
-                        <h2 id="hazardTitle">Report a Hazard</h2>
-                        <p class="announcement-text">Help keep the campus safe. Fill in the details below to report a hazard.</p>
-                        <div class="hazard-form">
-                            <div class="hazard-form-group"></div>
-                            <form action="{% url 'report' %}"
-                                  method="post"
-                                  enctype="multipart/form-data"
-                                  class="hazard-form">
-                                {% csrf_token %}
-                                {% for field in form %}
-                                    <div class="hazard-form-group">
-                                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                                        {{ field }}
-                                        {% if field.errors %}<small style="color:#e10600;">{{ field.errors|striptags }}</small>{% endif %}
-                                    </div>
-                                {% endfor %}
-                            </div>
-                            <div class="announcement-footer" style="gap: 10px;">
-                                <button class="announcement-action"
-                                        style="background: rgba(4,20,93,0.08);
-                                               color: #04145d;
-                                               box-shadow: none"
-                                        id="hazardCancelBtn"
-                                        type="button">Cancel</button>
-                                <button class="announcement-action" value="Submit "type="Submit">
-                                    <i class="fa-solid fa-paper-plane"></i> Submit Report
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+        </div>
+        <!-- end announcement-overlay -->
+    </div>
+    <div id="hazardPopup" class="announcement-overlay" aria-hidden="true">
+        <div class="announcement-panel"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="hazardTitle">
+            <div class="announcement-header">
+                <div class="announcement-badge">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>Report Hazard</span>
                 </div>
+                <button class="announcement-close"
+                        id="closeHazardBtn"
+                        type="button"
+                        aria-label="Close">×</button>
             </div>
-            <!-- ASSEMBLY POINT POPUP -->
-            <div id="assemblyPopup" class="announcement-overlay" aria-hidden="true">
-                <div class="announcement-panel" role="dialog" aria-modal="true">
-                    <div class="announcement-header">
-                        <div class="announcement-badge">
-                            <i class="fa-solid fa-people-group"></i>
-                            <span>Assembly Point</span>
-                        </div>
-                        <button class="announcement-close" id="closeAssemblyBtn" type="button">×</button>
-                    </div>
-                    <div class="announcement-content">
-                        <p class="announcement-eyebrow">Emergency</p>
-                        <h2>Assembly Points</h2>
-                        <p class="announcement-text">In case of emergency, proceed calmly to the nearest assembly point.</p>
-                        <div class="announcement-list">
-                            <div class="announcement-item">
-                                <span class="announcement-dot"></span>
-                                <div class="announcement-item-content">
-                                    <h3>Main Quadrangle</h3>
-                                    <div class="announcement-detail-static">
-                                        <p>Ground floor — front of the building near the main entrance.</p>
-                                    </div>
-                                </div>
+            <div class="announcement-content">
+                <p class="announcement-eyebrow">Safety Alert</p>
+                <h2 id="hazardTitle">Report a Hazard</h2>
+                <p class="announcement-text">Help keep the campus safe. Fill in the details below to report a hazard.</p>
+                <div class="hazard-form">
+                    <div class="hazard-form-group"></div>
+                    <form action="{% url 'report' %}"
+                          method="post"
+                          enctype="multipart/form-data"
+                          class="hazard-form">
+                        {% csrf_token %}
+                        {% for field in form %}
+                            <div class="hazard-form-group">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.errors %}<small style="color:#e10600;">{{ field.errors|striptags }}</small>{% endif %}
                             </div>
-                            <div class="announcement-item">
-                                <span class="announcement-dot"></span>
-                                <div class="announcement-item-content">
-                                    <h3>Parking Area</h3>
-                                    <div class="announcement-detail-static">
-                                        <p>Side exit — proceed to the open parking lot on the east side.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="announcement-item">
-                                <span class="announcement-dot"></span>
-                                <div class="announcement-item-content">
-                                    <h3>Back Court</h3>
-                                    <div class="announcement-detail-static">
-                                        <p>Rear exit — basketball court behind the main building.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        {% endfor %}
                     </div>
-                    <div class="announcement-footer">
-                        <button class="announcement-action" id="assemblyOkBtn" type="button">Got it</button>
+                    <div class="announcement-footer" style="gap: 10px;">
+                        <button class="announcement-action"
+                                style="background: rgba(4,20,93,0.08);
+                                       color: #04145d;
+                                       box-shadow: none"
+                                id="hazardCancelBtn"
+                                type="button">Cancel</button>
+                        <button class="announcement-action" value="Submit "type="Submit">
+                            <i class="fa-solid fa-paper-plane"></i> Submit Report
+                        </button>
                     </div>
-                </div>
-            </div>
-            <!-- SAFETY TIPS POPUP -->
-            <div id="safetyPopup" class="announcement-overlay" aria-hidden="true">
-                <div class="announcement-panel" role="dialog" aria-modal="true">
-                    <div class="announcement-header">
-                        <div class="announcement-badge">
-                            <i class="fa-solid fa-shield-heart"></i>
-                            <span>Safety Tips</span>
-                        </div>
-                        <button class="announcement-close" id="closeSafetyBtn" type="button">×</button>
-                    </div>
-                    <div class="announcement-content">
-                        <p class="announcement-eyebrow">Stay Safe</p>
-                        <h2>Campus Safety Tips</h2>
-                        <p class="announcement-text">Follow these guidelines to keep yourself and others safe inside the campus.</p>
-                        <div class="announcement-list">
-                            <div class="announcement-item">
-                                <span class="announcement-dot"></span>
-                                <div class="announcement-item-content">
-                                    <h3>Keep Hallways Clear</h3>
-                                    <div class="announcement-detail-static">
-                                        <p>Do not block corridors, stairways, or emergency exits at any time.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="announcement-item">
-                                <span class="announcement-dot"></span>
-                                <div class="announcement-item-content">
-                                    <h3>Follow Exit Signs</h3>
-                                    <div class="announcement-detail-static">
-                                        <p>In emergencies, follow posted directional signs and proceed to the nearest exit calmly.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="announcement-item">
-                                <span class="announcement-dot"></span>
-                                <div class="announcement-item-content">
-                                    <h3>No Running Indoors</h3>
-                                    <div class="announcement-detail-static">
-                                        <p>Walk inside the building to avoid accidents especially on stairways.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="announcement-item">
-                                <span class="announcement-dot"></span>
-                                <div class="announcement-item-content">
-                                    <h3>Report Suspicious Activity</h3>
-                                    <div class="announcement-detail-static">
-                                        <p>Immediately report anything unusual to the nearest security personnel.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="announcement-footer">
-                        <button class="announcement-action" id="safetyOkBtn" type="button">Got it</button>
-                    </div>
-                </div>
-            </div>
-            <!-- CONTACT SECURITY POPUP -->
-            <div id="contactPopup" class="announcement-overlay" aria-hidden="true">
-                <div class="announcement-panel" role="dialog" aria-modal="true">
-                    <div class="announcement-header">
-                        <div class="announcement-badge">
-                            <i class="fa-solid fa-phone"></i>
-                            <span>Contact Security</span>
-                        </div>
-                        <button class="announcement-close" id="closeContactBtn" type="button">×</button>
-                    </div>
-                    <div class="announcement-content">
-                        <p class="announcement-eyebrow">Security</p>
-                        <h2>Contact Security</h2>
-                        <p class="announcement-text">Reach campus security immediately in case of emergency or concern.</p>
-                        <div class="announcement-list">
-                            <div class="announcement-item">
-                                <span class="announcement-dot"></span>
-                                <div class="announcement-item-content">
-                                    <h3>Main Security Office</h3>
-                                    <div class="announcement-detail-static">
-                                        <p>Ground Floor — near the main entrance</p>
-                                        <a href="tel:+6300000000"
-                                           class="ann-btn ann-btn-navigate"
-                                           style="margin-top:10px;
-                                                  text-decoration:none">
-                                            <i class="fa-solid fa-phone"></i> Call Now
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="announcement-item">
-                                <span class="announcement-dot"></span>
-                                <div class="announcement-item-content">
-                                    <h3>Emergency Hotline</h3>
-                                    <div class="announcement-detail-static">
-                                        <p>Available 24/7 for urgent concerns</p>
-                                        <a href="tel:+6300000001"
-                                           class="ann-btn ann-btn-navigate"
-                                           style="margin-top:10px;
-                                                  text-decoration:none">
-                                            <i class="fa-solid fa-phone"></i> Call Now
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="announcement-footer">
-                        <button class="announcement-action" id="contactOkBtn" type="button">Got it</button>
-                    </div>
-                </div>
+                </form>
             </div>
         </div>
-    </body>
-    <script>
-        if (window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.href);
-        }
-    </script>
-    <!-- LOCATION DISPLAY SCRIPT - This shows the scanned location on the home page -->
-    <script>
-        (function() {
-            // Function to get the scanned location from sessionStorage
-            function getScannedLocation() {
-                try {
-                    const data = sessionStorage.getItem('scannedLocation');
-                    if (data) {
-                        return JSON.parse(data);
-                    }
-                } catch (e) {
-                    console.error('Error parsing scanned location:', e);
-                }
+    </div>
+    <!-- ASSEMBLY POINT POPUP -->
+    <div id="assemblyPopup" class="announcement-overlay" aria-hidden="true">
+        <div class="announcement-panel" role="dialog" aria-modal="true">
+            <div class="announcement-header">
+                <div class="announcement-badge">
+                    <i class="fa-solid fa-people-group"></i>
+                    <span>Assembly Point</span>
+                </div>
+                <button class="announcement-close" id="closeAssemblyBtn" type="button">×</button>
+            </div>
+            <div class="announcement-content">
+                <p class="announcement-eyebrow">Emergency</p>
+                <h2>Assembly Points</h2>
+                <p class="announcement-text">In case of emergency, proceed calmly to the nearest assembly point.</p>
+                <div class="announcement-list">
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Main Quadrangle</h3>
+                            <div class="announcement-detail-static">
+                                <p>Ground floor — front of the building near the main entrance.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Parking Area</h3>
+                            <div class="announcement-detail-static">
+                                <p>Side exit — proceed to the open parking lot on the east side.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Back Court</h3>
+                            <div class="announcement-detail-static">
+                                <p>Rear exit — basketball court behind the main building.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="announcement-footer">
+                <button class="announcement-action" id="assemblyOkBtn" type="button">Got it</button>
+            </div>
+        </div>
+    </div>
+    <!-- SAFETY TIPS POPUP -->
+    <div id="safetyPopup" class="announcement-overlay" aria-hidden="true">
+        <div class="announcement-panel" role="dialog" aria-modal="true">
+            <div class="announcement-header">
+                <div class="announcement-badge">
+                    <i class="fa-solid fa-shield-heart"></i>
+                    <span>Safety Tips</span>
+                </div>
+                <button class="announcement-close" id="closeSafetyBtn" type="button">×</button>
+            </div>
+            <div class="announcement-content">
+                <p class="announcement-eyebrow">Stay Safe</p>
+                <h2>Campus Safety Tips</h2>
+                <p class="announcement-text">Follow these guidelines to keep yourself and others safe inside the campus.</p>
+                <div class="announcement-list">
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Keep Hallways Clear</h3>
+                            <div class="announcement-detail-static">
+                                <p>Do not block corridors, stairways, or emergency exits at any time.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Follow Exit Signs</h3>
+                            <div class="announcement-detail-static">
+                                <p>In emergencies, follow posted directional signs and proceed to the nearest exit calmly.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>No Running Indoors</h3>
+                            <div class="announcement-detail-static">
+                                <p>Walk inside the building to avoid accidents especially on stairways.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Report Suspicious Activity</h3>
+                            <div class="announcement-detail-static">
+                                <p>Immediately report anything unusual to the nearest security personnel.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="announcement-footer">
+                <button class="announcement-action" id="safetyOkBtn" type="button">Got it</button>
+            </div>
+        </div>
+    </div>
+    <!-- CONTACT SECURITY POPUP -->
+    <div id="contactPopup" class="announcement-overlay" aria-hidden="true">
+        <div class="announcement-panel" role="dialog" aria-modal="true">
+            <div class="announcement-header">
+                <div class="announcement-badge">
+                    <i class="fa-solid fa-phone"></i>
+                    <span>Contact Security</span>
+                </div>
+                <button class="announcement-close" id="closeContactBtn" type="button">×</button>
+            </div>
+            <div class="announcement-content">
+                <p class="announcement-eyebrow">Security</p>
+                <h2>Contact Security</h2>
+                <p class="announcement-text">Reach campus security immediately in case of emergency or concern.</p>
+                <div class="announcement-list">
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Main Security Office</h3>
+                            <div class="announcement-detail-static">
+                                <p>Ground Floor — near the main entrance</p>
+                                <a href="tel:+6300000000"
+                                   class="ann-btn ann-btn-navigate"
+                                   style="margin-top:10px;
+                                          text-decoration:none">
+                                    <i class="fa-solid fa-phone"></i> Call Now
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="announcement-item">
+                        <span class="announcement-dot"></span>
+                        <div class="announcement-item-content">
+                            <h3>Emergency Hotline</h3>
+                            <div class="announcement-detail-static">
+                                <p>Available 24/7 for urgent concerns</p>
+                                <a href="tel:+6300000001"
+                                   class="ann-btn ann-btn-navigate"
+                                   style="margin-top:10px;
+                                          text-decoration:none">
+                                    <i class="fa-solid fa-phone"></i> Call Now
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="announcement-footer">
+                <button class="announcement-action" id="contactOkBtn" type="button">Got it</button>
+            </div>
+        </div>
+    </div>
+</body>
+<script>
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
+</script>
+<!-- EMERGENCY POPUP LOGIC (self-contained — doesn't depend on mainscript.js) -->
+<script>
+    (function() {
+        const EMERGENCY_DESTINATION = 'NEAREST_EMERGENCY';
+        const FLOOR_MAP_URL = "{% url 'floormap' %}";
+
+        const popup = document.getElementById('emergencyPopup');
+        const emergencyCard = document.getElementById('emergency-card');
+        const closeBtn = document.getElementById('closeEmergencyBtn');
+        const cancelBtn = document.getElementById('emergencyCancelBtn');
+
+        const lastScanBtn = document.getElementById('emergencyLastScanBtn');
+        const scanNowBtn = document.getElementById('emergencyScanNowBtn');
+        const allExitsBtn = document.getElementById('emergencyAllExitsBtn');
+        const lastScanDetail = document.getElementById('emergencyLastScanDetail');
+
+        function getLastKnownLocation() {
+            try {
+                const raw = sessionStorage.getItem('scannedLocation');
+                return raw ? JSON.parse(raw) : null;
+            } catch {
                 return null;
             }
+        }
 
-            // Function to update the location card with scanned location
-            function updateLocationDisplay() {
-                const location = getScannedLocation();
-                const nameEl = document.getElementById('current-location-name');
-                const detailEl = document.getElementById('current-location-detail');
-                const dotEl = document.getElementById('location-dot');
-                const clearBtn = document.getElementById('clear-location-btn');
+        function openEmergencyPopup() {
+            const last = getLastKnownLocation();
 
-                if (location && location.name) {
-                    // Update the UI with the scanned location
-                    nameEl.textContent = location.name;
-                    detailEl.textContent = `Floor ${location.floor} • X: ${location.x.toFixed(1)} Y: ${location.y.toFixed(1)}`;
-
-                    // Update the dot
-                    dotEl.className = 'dot scanned pulse';
-
-                    // Show clear button
-                    if (clearBtn) {
-                        clearBtn.style.display = 'inline-block';
-                    }
-
-                    console.log('📍 Location displayed on home page:', location.name);
-                } else {
-                    // Reset to default
-                    nameEl.textContent = 'No Location Scanned';
-                    detailEl.textContent = 'Scan a QR code to get your location';
-                    dotEl.className = 'dot';
-                    if (clearBtn) {
-                        clearBtn.style.display = 'none';
-                    }
-                }
+            if (last && last.name) {
+                lastScanDetail.textContent =
+                    `Route from "${last.name}" (Floor ${last.floor}).`;
+                lastScanBtn.classList.remove('disabled');
+            } else {
+                lastScanDetail.textContent =
+                    'No scanned location yet — scan a QR code first.';
+                lastScanBtn.classList.add('disabled');
             }
 
-            // Function to clear the scanned location
-            function clearScannedLocation() {
-                sessionStorage.removeItem('scannedLocation');
-                updateLocationDisplay();
+            popup.classList.add('active');
+            popup.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeEmergencyPopup() {
+            popup.classList.remove('active');
+            popup.setAttribute('aria-hidden', 'true');
+        }
+
+        // 🚨 1. LAST SCANNED LOCATION → NEAREST EXIT
+        function goFromLastScan() {
+            const last = getLastKnownLocation();
+
+            if (!last || !last.name) {
+                alert('No scanned location found.');
+                return;
             }
 
-            // Set up the clear button
-            document.addEventListener('DOMContentLoaded', function() {
-                const clearBtn = document.getElementById('clear-location-btn');
-                if (clearBtn) {
-                    clearBtn.addEventListener('click', clearScannedLocation);
-                }
+            window.location.href =
+                `/map/?start=${encodeURIComponent(last.name)}&end=${EMERGENCY_EXIT_1}&emergency=true`;
+        }
 
-                // Update location display when page loads
-                updateLocationDisplay();
+        // 🚨 2. SCAN NEW LOCATION → THEN ROUTE
+        function goFromNewScan() {
+            sessionStorage.setItem('pendingNavigationDestination', EMERGENCY_EXIT_1);
+            sessionStorage.setItem('pendingEmergencyRoute', 'true');
 
-                // Listen for storage changes (in case location is updated from another tab)
-                window.addEventListener('storage', function(e) {
-                    if (e.key === 'scannedLocation') {
-                        updateLocationDisplay();
-                    }
-                });
-
-                // Also listen for custom event (can be triggered from QR scanner)
-                window.addEventListener('locationScanned', function() {
-                    updateLocationDisplay();
-                });
-            });
-
-            // Expose functions globally
-            window.updateLocationDisplay = updateLocationDisplay;
-            window.clearScannedLocation = clearScannedLocation;
-            window.getScannedLocation = getScannedLocation;
-        })();
-    </script>
-    <!-- EMERGENCY POPUP LOGIC -->
-    <script>
-        (function() {
-            const EMERGENCY_DESTINATION = 'NEAREST_EMERGENCY';
-            const FLOOR_MAP_URL = "{% url 'floormap' %}";
-
-            const popup = document.getElementById('emergencyPopup');
-            const emergencyCard = document.getElementById('emergency-card');
-            const closeBtn = document.getElementById('closeEmergencyBtn');
-            const cancelBtn = document.getElementById('emergencyCancelBtn');
-
-            const lastScanBtn = document.getElementById('emergencyLastScanBtn');
-            const scanNowBtn = document.getElementById('emergencyScanNowBtn');
-            const allExitsBtn = document.getElementById('emergencyAllExitsBtn');
-            const lastScanDetail = document.getElementById('emergencyLastScanDetail');
-
-            function getLastKnownLocation() {
-                try {
-                    const raw = sessionStorage.getItem('scannedLocation');
-                    return raw ? JSON.parse(raw) : null;
-                } catch {
-                    return null;
-                }
-            }
-
-            function openEmergencyPopup() {
-                const last = getLastKnownLocation();
-
-                if (last && last.name) {
-                    lastScanDetail.textContent =
-                        `Route from "${last.name}" (Floor ${last.floor}).`;
-                    lastScanBtn.classList.remove('disabled');
-                } else {
-                    lastScanDetail.textContent =
-                        'No scanned location yet — scan a QR code first.';
-                    lastScanBtn.classList.add('disabled');
-                }
-
-                popup.classList.add('active');
-                popup.setAttribute('aria-hidden', 'false');
-            }
-
-            function closeEmergencyPopup() {
-                popup.classList.remove('active');
-                popup.setAttribute('aria-hidden', 'true');
-            }
-
-            // 🚨 1. LAST SCANNED LOCATION → NEAREST EXIT
-            function goFromLastScan() {
-                const last = getLastKnownLocation();
-
-                if (!last || !last.name) {
-                    alert('No scanned location found.');
-                    return;
-                }
-
+            if (typeof scan === 'function') {
+                scan();
+            } else {
                 window.location.href =
-                    `/map/?start=${encodeURIComponent(last.name)}&end=NEAREST_EMERGENCY&emergency=true`;
+                    `/map/?emergency=true&promptScan=true`;
             }
+        }
 
-            // 🚨 2. SCAN NEW LOCATION → THEN ROUTE
-            function goFromNewScan() {
-                sessionStorage.setItem('pendingNavigationDestination', EMERGENCY_DESTINATION);
-                sessionStorage.setItem('pendingEmergencyRoute', 'true');
+        // 🚨 3. ALL EXITS VIEW (FIXED)
+        function goToAllFloorExits() {
+            window.location.href =
+                `/map/?emergency=true&showAllExits=true`;
+        }
 
-                if (typeof scan === 'function') {
-                    scan();
-                } else {
-                    window.location.href =
-                        `/map/?emergency=true&promptScan=true`;
-                }
-            }
+        emergencyCard.addEventListener('click', openEmergencyPopup);
+        closeBtn.addEventListener('click', closeEmergencyPopup);
+        cancelBtn.addEventListener('click', closeEmergencyPopup);
 
-            // 🚨 3. ALL EXITS VIEW
-            function goToAllFloorExits() {
-                window.location.href =
-                    `/map/?emergency=true&showAllExits=true`;
-            }
-
-            emergencyCard.addEventListener('click', openEmergencyPopup);
-            closeBtn.addEventListener('click', closeEmergencyPopup);
-            cancelBtn.addEventListener('click', closeEmergencyPopup);
-
-            popup.addEventListener('click', (e) => {
-                if (e.target === popup) closeEmergencyPopup();
-            });
-
-            lastScanBtn.addEventListener('click', goFromLastScan);
-            scanNowBtn.addEventListener('click', goFromNewScan);
-            allExitsBtn.addEventListener('click', goToAllFloorExits);
-        })();
-    </script>
-    <!-- Quick Access Button Handlers -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Floor Maps button
-            document.getElementById('floor-btn')?.addEventListener('click', function() {
-                document.getElementById('test').style.display = 'flex';
-            });
-
-            // Assembly Point button
-            document.getElementById('assembly-btn')?.addEventListener('click', function() {
-                document.getElementById('assemblyPopup').classList.add('active');
-            });
-
-            // Safety Tips button
-            document.getElementById('safety-btn')?.addEventListener('click', function() {
-                document.getElementById('safetyPopup').classList.add('active');
-            });
-
-            // Contact Security button
-            document.getElementById('contact-btn')?.addEventListener('click', function() {
-                document.getElementById('contactPopup').classList.add('active');
-            });
-
-            // Report Hazard button
-            document.getElementById('hazard-btn')?.addEventListener('click', function() {
-                document.getElementById('hazardPopup').classList.add('active');
-            });
-
-            // Announcement button
-            document.getElementById('announcement-btn')?.addEventListener('click', function() {
-                document.getElementById('announcementPopup').classList.add('active');
-            });
-
-            // Close buttons
-            document.getElementById('closePopupBtn')?.addEventListener('click', function() {
-                document.getElementById('test').style.display = 'none';
-            });
-
-            document.getElementById('closeAssemblyBtn')?.addEventListener('click', function() {
-                document.getElementById('assemblyPopup').classList.remove('active');
-            });
-
-            document.getElementById('closeSafetyBtn')?.addEventListener('click', function() {
-                document.getElementById('safetyPopup').classList.remove('active');
-            });
-
-            document.getElementById('closeContactBtn')?.addEventListener('click', function() {
-                document.getElementById('contactPopup').classList.remove('active');
-            });
-
-            document.getElementById('closeHazardBtn')?.addEventListener('click', function() {
-                document.getElementById('hazardPopup').classList.remove('active');
-            });
-
-            document.getElementById('closeAnnouncementBtn')?.addEventListener('click', function() {
-                document.getElementById('announcementPopup').classList.remove('active');
-            });
-
-            document.getElementById('announcementOkBtn')?.addEventListener('click', function() {
-                document.getElementById('announcementPopup').classList.remove('active');
-            });
-
-            document.getElementById('assemblyOkBtn')?.addEventListener('click', function() {
-                document.getElementById('assemblyPopup').classList.remove('active');
-            });
-
-            document.getElementById('safetyOkBtn')?.addEventListener('click', function() {
-                document.getElementById('safetyPopup').classList.remove('active');
-            });
-
-            document.getElementById('contactOkBtn')?.addEventListener('click', function() {
-                document.getElementById('contactPopup').classList.remove('active');
-            });
-
-            document.getElementById('hazardCancelBtn')?.addEventListener('click', function() {
-                document.getElementById('hazardPopup').classList.remove('active');
-            });
-
-            // Popup close for floor selection
-            document.getElementById('test')?.addEventListener('click', function(e) {
-                if (e.target === this) {
-                    this.style.display = 'none';
-                }
-            });
-
-            // Floor selection cards
-            document.querySelectorAll('.popup-floor-card').forEach(card => {
-                card.addEventListener('click', function() {
-                    const floor = this.dataset.floor;
-                    window.location.href = `/map/?floor=${floor}`;
-                });
-            });
+        popup.addEventListener('click', (e) => {
+            if (e.target === popup) closeEmergencyPopup();
         });
-    </script>
+
+        lastScanBtn.addEventListener('click', goFromLastScan);
+        scanNowBtn.addEventListener('click', goFromNewScan);
+        allExitsBtn.addEventListener('click', goToAllFloorExits);
+    })();
+</script>
 {% endblock content %}
