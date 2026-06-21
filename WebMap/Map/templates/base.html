@@ -312,6 +312,7 @@
                     height: auto;
                     border-radius: 12px;
                     background: #000;
+                    transform: scaleX(-1); /* ✅ This is correct for front camera mirror effect */
                 `;
                 container.appendChild(video);
 
@@ -379,7 +380,7 @@
                 return container;
             }
 
-            // jsQR fallback implementation
+            // jsQR fallback implementation - FIXED: No extra flip
             function scanWithJsQR() {
                 return new Promise((resolve, reject) => {
                     const video = document.createElement('video');
@@ -390,14 +391,16 @@
                     document.body.appendChild(scanContainer);
 
                     const videoElement = document.getElementById('scanner-video');
-                    videoElement.style.transform = 'scaleX(-1)';
+                    // ✅ REMOVED: videoElement.style.transform = 'scaleX(-1)';
+                    // The video element already has transform: scaleX(-1) from createScannerUI()
+                    // No need to apply it again here
 
                     let stream = null;
                     let animationFrame = null;
 
                     navigator.mediaDevices.getUserMedia({
                             video: {
-                                facingMode: 'environment'
+                                facingMode: 'environment' // Use back camera by default
                             }
                         })
                         .then(s => {
@@ -540,76 +543,5 @@
                     console.error('❌ Service Worker registration failed:', err);
                 });
         }
-        // Function to handle "Scan Current Location" button click
-        function handleScanCurrentLocation() {
-            // Check if we have a scanned location in cache
-            const scannedLocation = window.getScannedLocation ? window.getScannedLocation() : null;
-
-            if (scannedLocation) {
-                console.log('📍 Using scanned location:', scannedLocation);
-
-                // Switch to the correct floor
-                currentFloor = scannedLocation.floor;
-                switchFloor(scannedLocation.floor);
-
-                // Remove existing marker
-                if (currentMarker) {
-                    searchMarkerLayer.removeLayer(currentMarker);
-                    currentMarker = null;
-                }
-
-                // Create marker at scanned location
-                currentMarker = L.circleMarker([scannedLocation.y, scannedLocation.x], {
-                    radius: 18,
-                    fillColor: '#00E5FF',
-                    color: '#00E5FF',
-                    weight: 3,
-                    opacity: 1,
-                    fillOpacity: 0.3,
-                    zIndex: 1000,
-                    className: 'pulse-marker'
-                });
-
-                // Add popup with location info
-                currentMarker.bindPopup(`
-            <div style="text-align: center; padding: 10px;">
-                <div style="font-size: 20px; margin-bottom: 5px;">📍</div>
-                <strong style="font-size: 16px;">${scannedLocation.name}</strong><br>
-                <span style="color: #666;">Floor ${scannedLocation.floor}</span><br>
-                <span style="font-size: 12px; color: #999;">
-                    X: ${scannedLocation.x.toFixed(1)} | Y: ${scannedLocation.y.toFixed(1)}
-                </span>
-            </div>
-        `);
-
-                searchMarkerLayer.addLayer(currentMarker);
-
-                // Open popup
-                setTimeout(() => {
-                    currentMarker.openPopup();
-                }, 300);
-
-                // Zoom to location
-                map.setView([scannedLocation.y, scannedLocation.x], 2.5, {
-                    animate: true,
-                    duration: 0.5
-                });
-
-                // Clear the cached location after using it
-                if (window.clearScannedLocation) {
-                    window.clearScannedLocation();
-                }
-
-                // Show success message
-                showToast(`📍 Location set to "${scannedLocation.name}"`);
-
-            } else {
-                // No scanned location found
-                showToast('Please scan a QR code first using the scan button');
-            }
-        }
-
-        // Add this to your existing code where you handle the "Scan Current Location" button
-        document.querySelector('.scan-current-location-btn')?.addEventListener('click', handleScanCurrentLocation);
     </script>
 </html>

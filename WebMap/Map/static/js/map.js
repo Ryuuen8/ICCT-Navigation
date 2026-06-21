@@ -1,7 +1,7 @@
 // MAP SETUP
 console.log("MAP JS LOADED");
 console.log("navbtn at load:", document.getElementById("navbtn"));
-
+let scannedLocationMarker = null;
 
 // --- Use each floor plan's real SVG dimensions for accurate fit/zoom. ---
 // Added defaultZoom + defaultCenter so each floor can open already zoomed in
@@ -764,7 +764,7 @@ locations.forEach(function (loc) {
 
         if (selected.length === 1) {
             polygon.bindPopup(`
-                    BACOOR
+                    Start Detected
                     `).openPopup();
             setTimeout(() => polygon.closePopup(), 1500);
         }
@@ -785,15 +785,31 @@ function switchFloor(floor) {
 
     const previousFloor = currentFloor;
 
+    // Remove previous floor layers
     if (floors[previousFloor]) {
         map.removeLayer(floors[previousFloor].image);
         map.removeLayer(floors[previousFloor].layer);
     }
+
+    // Remove current path layers
     currentPathLayers.forEach((layer) => {
         if (map.hasLayer(layer)) {
             map.removeLayer(layer);
         }
     });
+
+    // ✅ REMOVE the scanned location marker when switching floors
+    if (scannedLocationMarker) {
+        // Remove from the floor layer if it was added there
+        if (floors[previousFloor] && floors[previousFloor].layer) {
+            floors[previousFloor].layer.removeLayer(scannedLocationMarker);
+        }
+        // Also remove from map directly if it was added
+        if (map.hasLayer(scannedLocationMarker)) {
+            map.removeLayer(scannedLocationMarker);
+        }
+        scannedLocationMarker = null;
+    }
 
     currentFloor = floor;
 
@@ -801,6 +817,7 @@ function switchFloor(floor) {
     map.addLayer(floors[currentFloor].layer);
     fitCurrentFloor();
 
+    // Re-add path layers for the new floor
     currentPathLayers.forEach((layer) => {
         if (layer.segmentFloor === currentFloor) {
             map.addLayer(layer);
