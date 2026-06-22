@@ -57,13 +57,7 @@ def announcement(request):
 
 def floormap(request):
     locations = Location.objects.exclude(Q(room_name__startswith="Point") | Q(room_name__startswith="Stair"))
-    paginator = Paginator(locations, 30)
-    
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-    context = {'room_name':  locations}
-        
-    return render(request,'floor-maps.html', {"page_obj": page_obj  })
+    return render(request,'floor-maps.html', {"locations":locations})
 
 def emergency(request):
     return render(request, 'emergencty.html')

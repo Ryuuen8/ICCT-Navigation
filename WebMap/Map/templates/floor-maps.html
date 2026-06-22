@@ -53,7 +53,7 @@
                 <!-- Destination List - Django integration point -->
                 <div class="fm-destination-list" id="fmDestinationList">
                     <ul class="fm-dest-list-ul" id="location-list">
-                        {% for name in page_obj %}
+                        {% for name in locations %}
                             <li class="fm-dest-item" data-name="{{ name }}">
                                 <div class="fm-dest-info">
                                     <div class="fm-dest-name">
@@ -76,35 +76,6 @@
                             </li>
                         {% endfor %}
                     </ul>
-                </div>
-                <div class="pagination">
-                    <span class="step-links">
-                        {% if page_obj.has_previous %}
-                            <a href="?page=1">&laquo; first</a>
-                            <a href="?page={{ page_obj.previous_page_number }}">previous</a>
-                        {% endif %}
-                        {% if page_obj.number > 3 %}
-                            <a href="?page=1">1</a>
-                            {% if page_obj.number > 4 %}<span>...</span>{% endif %}
-                        {% endif %}
-                        {% for num in page_obj.paginator.page_range %}
-                            {% if num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
-                                {% if page_obj.number == num %}
-                                    <span class="current">{{ num }}</span>
-                                {% else %}
-                                    <a href="?page={{ num }}">{{ num }}</a>
-                                {% endif %}
-                            {% endif %}
-                        {% endfor %}
-                        {% if page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
-                            {% if page_obj.number < page_obj.paginator.num_pages|add:'-3' %}<span>...</span>{% endif %}
-                            <a href="?page={{ page_obj.paginator.num_pages }}">{{ page_obj.paginator.num_pages }}</a>
-                        {% endif %}
-                        {% if page_obj.has_next %}
-                            <a href="?page={{ page_obj.next_page_number }}">next</a>
-                            <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
-                        {% endif %}
-                    </span>
                 </div>
             </div>
         </div>
