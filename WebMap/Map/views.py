@@ -56,7 +56,9 @@ def announcement(request):
     return render(request, 'main.html', context)
 
 def floormap(request):
-    locations = Location.objects.exclude(Q(room_name__startswith="Point") | Q(room_name__startswith="Stair"))
+    locations = Location.objects.exclude(Q(room_name__contains="H1") | Q(room_name__startswith="Stair")| Q(room_name__contains="H2")| Q(room_name__contains="H3")|
+                                         Q(room_name__contains="H4")| Q(room_name__contains="H5")| Q(room_name__contains="HEX")|Q(room_name__contains="STAIR")
+                                         | Q(room_name__contains="EMERGENCY NODE")|Q(room_name__contains="NULL"))
     return render(request,'floor-maps.html', {"locations":locations})
 
 def emergency(request):
