@@ -16,6 +16,7 @@ let emergencyCache = null;
 let isLoadingEmergency = false;
 let pulseTimers = [];
 let resizeTimer;
+let pathfindController = null;
 
 const PENDING_DESTINATION_KEY = 'pendingNavigationDestination';
 
@@ -23,9 +24,9 @@ const PENDING_DESTINATION_KEY = 'pendingNavigationDestination';
 const floorPlans = {
     1: { imageUrl: '/static/images/1.svg', width: 865, height: 860, defaultZoom: 1.4954560748550518, defaultCenter: [241.17471666211208, 455.7492807511971] },
     2: { imageUrl: '/static/images/2.svg', width: 920, height: 639, defaultZoom: 1.498296103390921, defaultCenter: [222.64788599801707, 472.9055257445959] },
+    21: { imageUrl: '/static/images/3B.svg', width: 869, height: 631 },
     31: { imageUrl: '/static/images/2B.svg', width: 1036, height: 832 },
     3: { imageUrl: '/static/images/3.svg', width: 920, height: 636, defaultZoom: 0, defaultCenter: [320, 460] },
-    21: { imageUrl: '/static/images/3B.svg', width: 869, height: 631 },
     4: { imageUrl: '/static/images/4.svg', width: 920, height: 635, defaultZoom: 0, defaultCenter: [320, 460] },
     5: { imageUrl: '/static/images/5.svg', width: 918, height: 636, defaultZoom: 0, defaultCenter: [320, 460] },
     6: { imageUrl: '/static/images/6.svg', width: 894, height: 560, defaultZoom: 0, defaultCenter: [320, 460] }
@@ -274,7 +275,6 @@ function showStartToast(locationName) {
 }
 
 // ─── PATHFINDING MODE ─────────────────────────────────────────────────────────
-// ✅ declared early so setNavigateButtonActive can reference compassBtn safely
 const compassBtn = document.getElementById('navbtn');
 
 function setPathfindingMode(active) {
@@ -458,10 +458,10 @@ function drawPath(pathData) {
 function finishPathfinding(pathData) {
     drawPath(pathData);
     setPathfindingMode(false);
-    clearScannedMarker(); // ✅ clear start marker after route drawn
+    clearScannedMarker();
 }
 
-// ─── OFFLINE PATHFINDING ──────────────────────────────────────────────────────
+// ─── PATHFINDING REQUEST ──────────────────────────────────────────────────────
 function findOfflinePath(start, end) {
     const graph = window.OfflinePathfinder?.loadGraphFromPage?.();
     if (!graph) return false;
@@ -479,7 +479,12 @@ function findOfflinePath(start, end) {
 }
 
 function requestPath(start, end) {
-    // ✅ offline check first
+    // ✅ abort any in-flight request
+    if (pathfindController) {
+        pathfindController.abort();
+        pathfindController = null;
+    }
+
     if (!navigator.onLine) {
         if (findOfflinePath(start, end)) return;
         alert('You are offline and no offline pathfinder is available.');
@@ -493,9 +498,15 @@ function requestPath(start, end) {
         return;
     }
 
+    // ✅ loading state
+    if (compassBtn) compassBtn.style.opacity = '0.5';
+
+    pathfindController = new AbortController();
+
     fetch('/pathfind/', {
         method: 'POST',
         credentials: 'same-origin',
+        signal: pathfindController.signal,
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': csrftoken
@@ -505,13 +516,9 @@ function requestPath(start, end) {
         .then(async (response) => {
             if (!response.ok) {
                 const text = await response.text();
-                // ✅ handle SW offline signal
                 try {
                     const json = JSON.parse(text);
-                    if (json.offline) {
-                        findOfflinePath(start, end);
-                        return null;
-                    }
+                    if (json.offline) { findOfflinePath(start, end); return null; }
                 } catch { }
                 console.error('SERVER ERROR:', text);
                 findOfflinePath(start, end);
@@ -526,15 +533,21 @@ function requestPath(start, end) {
             showPathFoundToast(end);
         })
         .catch((error) => {
+            if (error.name === 'AbortError') return;
             console.error('FETCH ERROR:', error);
             if (!findOfflinePath(start, end)) {
                 alert('❌ Error finding path. Check console for details.');
             }
+        })
+        .finally(() => {
+            pathfindController = null;
+            if (compassBtn) compassBtn.style.opacity = '';
         });
 }
 
 // ─── EMERGENCY PATHS ──────────────────────────────────────────────────────────
 const emergencyLayer = L.layerGroup();
+const emergencyRenderer = L.canvas();
 
 function startPulse(decorator) {
     let opacity = 0.9;
@@ -545,9 +558,9 @@ function startPulse(decorator) {
         if (opacity >= 0.9) direction = -1;
         decorator.setPatterns([{
             offset: 0,
-            repeat: 20,
+            repeat: 40,
             symbol: L.Symbol.arrowHead({
-                pixelSize: 10,
+                pixelSize: 12,
                 polygon: false,
                 pathOptions: { color: 'red', weight: 2, opacity }
             })
@@ -573,61 +586,59 @@ async function toggleEmergencyPaths() {
     try {
         isLoadingEmergency = true;
 
-        // Fetch from your API endpoint
-        const res = await fetch('emergency-paths/');  // Your URL
-        if (!res.ok) throw new Error("Failed to load emergency paths");
-        const data = await res.json();
+        // ✅ cache — only fetches once per page session
+        if (!emergencyCache) {
+            const res = await fetch('emergency-paths/');
+            if (!res.ok) throw new Error(`Failed to load emergency paths: ${res.status}`);
+            emergencyCache = await res.json();
+            console.log(`Emergency cache loaded: ${emergencyCache.length} total paths`);
+        }
 
         emergencyLayer.clearLayers();
         clearPulseAnimations();
 
-        // Filter paths for current floor
-        const floorPaths = data.filter(path => {
-            // Check if either from or to is on current floor
-            // Or if both are on the same floor
-            return String(path.from[2]) === String(currentFloor) &&
-                String(path.to[2]) === String(currentFloor);
-        });
+        const floorPaths = emergencyCache.filter(({ from, to }) =>
+            String(from[2]) === String(currentFloor) &&
+            String(to[2]) === String(currentFloor)
+        );
 
-        console.log(`Found ${floorPaths.length} emergency paths for floor ${currentFloor}`);
+        console.log(`Emergency paths for floor ${currentFloor}: ${floorPaths.length}`);
 
         if (floorPaths.length === 0) {
-            alert(`No emergency paths found for floor ${currentFloor}`);
+            console.warn(`No emergency paths on floor ${currentFloor}`);
             emergencyLayer.addTo(map);
             return;
         }
 
-        // Add each path with pulsing arrows
-        floorPaths.forEach((path, index) => {
-            const fromCoords = [path.from[0], path.from[1]];
-            const toCoords = [path.to[0], path.to[1]];
+        floorPaths.forEach(({ from, to }) => {
+            const coords = [[from[0], from[1]], [to[0], to[1]]];
 
-            console.log(`Path ${index + 1}: From [${fromCoords}] to [${toCoords}]`);
+            // ✅ visible base line
+            L.polyline(coords, {
+                color: 'red',
+                weight: 3,
+                opacity: 0.5,
+                dashArray: '6 4',
+                renderer: emergencyRenderer
+            }).addTo(emergencyLayer);
 
-            const decorator = L.polylineDecorator(
-                [fromCoords, toCoords],
-                {
-                    patterns: [{
-                        offset: 0,
-                        repeat: 10,
-                        symbol: L.Symbol.arrowHead({
-                            pixelSize: 10,
-                            polygon: false,
-                            pathOptions: {
-                                color: 'red',
-                                weight: 2,
-                                opacity: 0.9
-                            }
-                        })
-                    }]
-                }
-            ).addTo(emergencyLayer);
+            // ✅ arrow decorator
+            const decorator = L.polylineDecorator(coords, {
+                patterns: [{
+                    offset: '10%',
+                    repeat: 40,
+                    symbol: L.Symbol.arrowHead({
+                        pixelSize: 12,
+                        polygon: false,
+                        pathOptions: { color: 'red', weight: 2, opacity: 0.9 }
+                    })
+                }]
+            }).addTo(emergencyLayer);
 
             startPulse(decorator);
         });
 
         emergencyLayer.addTo(map);
-        console.log(`Added ${floorPaths.length} emergency paths to map`);
 
     } catch (err) {
         console.error("Emergency paths error:", err);
@@ -663,10 +674,8 @@ function switchFloor(floor) {
         if (map.hasLayer(layer)) map.removeLayer(layer);
     });
 
-    // ✅ use centralized clearScannedMarker
     clearScannedMarker();
 
-    // ✅ clear emergency paths + pulse
     const emergencyWasShowing = map.hasLayer(emergencyLayer);
     emergencyLayer.clearLayers();
     clearPulseAnimations();
@@ -716,7 +725,6 @@ function handleScannedLocation() {
     try {
         const location = JSON.parse(scannedData);
 
-        // ✅ switch floor first, then clear old marker using updated currentFloor
         switchFloor(location.floor);
         clearScannedMarker();
 
@@ -739,7 +747,6 @@ function handleScannedLocation() {
             </div>
         `);
 
-        // ✅ add directly to map so removal is straightforward
         marker.addTo(map);
         marker.openPopup();
         scannedLocationMarker = marker;
@@ -767,37 +774,58 @@ function handleScannedLocation() {
 }
 
 // ─── LOCATION POLYGONS ────────────────────────────────────────────────────────
-locations.forEach((loc) => {
-    const polygon = L.polygon(loc.coordinates, {
-        color: "transparent",
-        weight: 2,
-        fillOpacity: 0.15
-    }).addTo(floors[loc.floor].layer);
+// ✅ shared canvas renderer for all polygons
+const polygonRenderer = L.canvas();
 
-    polygon.bindPopup(`<b>${loc.room_name}</b>`);
+// ✅ group by floor to avoid repeated layer lookups
+const locationsByFloor = locations.reduce((acc, loc) => {
+    if (!acc[loc.floor]) acc[loc.floor] = [];
+    acc[loc.floor].push(loc);
+    return acc;
+}, {});
 
-    polygon.on("click", function () {
-        if (!pathfindingMode) return;
+Object.entries(locationsByFloor).forEach(([floor, floorLocs]) => {
+    const floorNum = parseInt(floor, 10);
+    const floorLayer = floors[floorNum]?.layer;
+    if (!floorLayer) return;
 
-        selected.push(loc.room_name);
-        console.log("Selected:", selected);
+    floorLocs.forEach((loc) => {
+        const polygon = L.polygon(loc.coordinates, {
+            color: "transparent",
+            weight: 2,
+            fillOpacity: 0.15,
+            renderer: polygonRenderer  // ✅ canvas renderer
+        });
 
-        if (!getCSRFToken()) {
-            console.error("CSRF token missing");
-            selected = [];
-            return;
-        }
+        polygon.bindPopup(`<b>${loc.room_name}</b>`, {
+            autoPan: false  // ✅ skip autopan on popup open
+        });
 
-        if (selected.length === 1) {
-            polygon.bindPopup('Start Detected').openPopup();
-            setTimeout(() => polygon.closePopup(), 1500);
-        }
+        polygon.on("click", function () {
+            if (!pathfindingMode) return;
 
-        if (selected.length === 2) {
-            const [start, end] = selected;
-            setPathfindingMode(false);
-            requestPath(start, end);
-        }
+            selected.push(loc.room_name);
+            console.log("Selected:", selected);
+
+            if (!getCSRFToken()) {
+                console.error("CSRF token missing");
+                selected = [];
+                return;
+            }
+
+            if (selected.length === 1) {
+                polygon.bindPopup('Start Detected').openPopup();
+                setTimeout(() => polygon.closePopup(), 1500);
+            }
+
+            if (selected.length === 2) {
+                const [start, end] = selected;
+                setPathfindingMode(false);
+                requestPath(start, end);
+            }
+        });
+
+        floorLayer.addLayer(polygon);
     });
 });
 
@@ -920,7 +948,6 @@ document.addEventListener('DOMContentLoaded', () => {
 drawPath(path);
 handleScannedLocation();
 
-// ✅ handle ?start=&end= from external links (e.g. announcement navigate button)
 (function urlOutside() {
     const start = urlParams.get("start");
     const end = urlParams.get("end");
