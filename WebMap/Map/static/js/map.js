@@ -1,6 +1,10 @@
 // MAP SETUP
 console.log("MAP JS LOADED");
 console.log("navbtn at load:", document.getElementById("navbtn"));
+// ✅ tell SW to pre-cache map data for offline use
+if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: 'CACHE_MAP_DATA' });
+}
 let scannedLocationMarker = null;
 
 // --- Use each floor plan's real SVG dimensions for accurate fit/zoom. ---

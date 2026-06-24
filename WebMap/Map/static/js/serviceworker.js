@@ -1,4 +1,4 @@
-const CACHE_VERSION = "webmap-pwa-v7";
+const CACHE_VERSION = "webmap-pwa-v8";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const OFFLINE_URL = "/offline/";
@@ -9,6 +9,7 @@ const APP_PAGES = [
     "/map/",
     "/emergency/",
     "/floormap/",
+    "/offline-map/",
     OFFLINE_URL,
     OFFLINE_MAP_URL,
 ];
@@ -38,9 +39,11 @@ const CDN_ASSETS = [
     "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js",
     "https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.min.js",
     "https://unpkg.com/@elfalem/leaflet-curve",
-    // ✅ fixed version (was 1.7.0 which doesn't exist)
     "https://cdn.jsdelivr.net/npm/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.min.js",
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css",
+    // ✅ font awesome webfonts needed for icons to render
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/webfonts/fa-solid-900.woff2",
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/webfonts/fa-regular-400.woff2",
 ];
 
 const API_CACHE_PREFIXES = [
@@ -48,10 +51,9 @@ const API_CACHE_PREFIXES = [
     "/api/connections/",
     "/api/announcements/",
     "/api/hazards/",
-    "/emergency-paths/",  // ✅ added
+    "/emergency-paths/",
 ];
 
-// ✅ API routes that should NEVER be cached (write operations, auth-sensitive)
 const API_NO_CACHE = [
     "/pathfind/",
     "/save-room/",
@@ -66,7 +68,6 @@ const CDN_HOSTS = [
     "cdn.jsdelivr.net",
 ];
 
-// ✅ max entries for dynamic cache to prevent unbounded growth
 const DYNAMIC_CACHE_LIMIT = 60;
 
 function isNavigationRequest(request) {
@@ -76,6 +77,11 @@ function isNavigationRequest(request) {
 
 function isStaticAsset(url) {
     return url.pathname.startsWith("/static/") || url.pathname.startsWith("/media/");
+}
+
+function isFloorImage(url) {
+    return url.pathname.startsWith("/static/images/") &&
+        (url.pathname.endsWith(".svg") || url.pathname.endsWith(".png"));
 }
 
 function isApiGet(request, url) {
@@ -91,7 +97,6 @@ function isCdnRequest(url) {
     return CDN_HOSTS.some((host) => url.hostname.endsWith(host));
 }
 
-// ✅ trim cache if it grows too large
 async function trimCache(cacheName, maxEntries) {
     const cache = await caches.open(cacheName);
     const keys = await cache.keys();
@@ -169,13 +174,33 @@ async function staleWhileRevalidate(request, cacheName) {
     return cached || networkPromise || fetch(request);
 }
 
+// ✅ offline fallback for pathfinding — uses cached locations/connections
+async function offlinePathfindFallback(request) {
+    try {
+        const response = await fetch(request);
+        return response;
+    } catch {
+        return new Response(
+            JSON.stringify({
+                error: "offline",
+                offline: true,
+                message: "You are offline. Using offline navigation."
+            }),
+            {
+                status: 503,
+                headers: { "Content-Type": "application/json" },
+            }
+        );
+    }
+}
+
 self.addEventListener("install", (event) => {
     event.waitUntil(
         Promise.all([
             caches.open(STATIC_CACHE).then((cache) =>
                 cache.addAll([...APP_PAGES, ...APP_STATIC].filter(Boolean))
             ),
-            // ✅ CDN assets fail silently per-item instead of failing the whole install
+            // ✅ CDN assets fail silently per-item
             caches.open(DYNAMIC_CACHE).then((cache) =>
                 Promise.allSettled(
                     CDN_ASSETS.map((url) =>
@@ -206,10 +231,27 @@ self.addEventListener("message", (event) => {
         self.skipWaiting();
     }
 
-    // ✅ allow frontend to bust emergency paths cache on demand
     if (event.data?.type === "CLEAR_EMERGENCY_CACHE") {
         caches.open(DYNAMIC_CACHE).then((cache) => {
             cache.delete("/emergency-paths/");
+        });
+    }
+
+    // ✅ pre-cache map data when user visits map page while online
+    if (event.data?.type === "CACHE_MAP_DATA") {
+        caches.open(DYNAMIC_CACHE).then((cache) => {
+            const urlsToCache = [
+                "/api/locations/",
+                "/api/connections/",
+                "/emergency-paths/",
+            ];
+            Promise.allSettled(
+                urlsToCache.map((url) =>
+                    fetch(url).then((res) => {
+                        if (res.ok) cache.put(url, res.clone());
+                    }).catch(() => { })
+                )
+            );
         });
     }
 });
@@ -227,7 +269,13 @@ self.addEventListener("fetch", (event) => {
         return;
     }
 
-    // ✅ never cache write/auth-sensitive endpoints
+    // ✅ pathfind — try network, return offline signal if fails
+    if (url.pathname.startsWith("/pathfind/")) {
+        event.respondWith(offlinePathfindFallback(request));
+        return;
+    }
+
+    // ✅ never cache other write endpoints
     if (isNoCacheApi(url)) {
         event.respondWith(
             fetch(request).catch(() =>
@@ -261,6 +309,12 @@ self.addEventListener("fetch", (event) => {
                 )
             )
         );
+        return;
+    }
+
+    // ✅ floor SVGs — cache first, they never change
+    if (isFloorImage(url)) {
+        event.respondWith(cacheFirst(request, STATIC_CACHE));
         return;
     }
 
