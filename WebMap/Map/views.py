@@ -13,6 +13,7 @@ from rest_framework import viewsets
 from .serializers import LocationSerializer, ConnectionSerializer, AnnouncementSerializer, HazardReportSerializer
 from django.contrib.auth.decorators import login_required, user_passes_test
 from rest_framework.permissions import IsAdminUser
+from django.core.cache import cache
 # Create your views here.
 
 
@@ -266,41 +267,46 @@ def pathfind(request):
     
     
 def index(request):
-    """Render the main index used by the map UI.
 
-    This view collects `Location` objects and embeds their coordinates
-    into the template so the frontend can render room polygons and
-    build a client-side graph view.
-    """
-    locations = Location.objects.all()
-    data = [
-        {
-            "floor": loc.floor_location,
-            "floor_location": loc.floor_location,
-            "room_name": loc.room_name,
-            "coordinates": loc.coordinates,
-            "x_coordinate": loc.x_coordinate,
-            "y_coordinate": loc.y_coordinate,
-            "stair_type": loc.stair_type,
-        }
-        for loc in locations
-    ]
-    connections_data = [
-        {
-            "from": conn.from_location.room_name,
-            "to": conn.to_location.room_name,
-            "cost": conn.cost,
-            "from_floor": conn.from_location.floor_location,
-            "to_floor": conn.to_location.floor_location,
-        }
-        for conn in Connection.objects.select_related(
-            "from_location", "to_location"
-        ).all()
-    ]
+    locations = cache.get("locations_data")
+    connections = cache.get("connections_data")
+
+    if locations is None:
+        locations = [
+            {
+                "floor": loc.floor_location,
+                "floor_location": loc.floor_location,
+                "room_name": loc.room_name,
+                "coordinates": loc.coordinates,
+                "x_coordinate": loc.x_coordinate,
+                "y_coordinate": loc.y_coordinate,
+                "stair_type": loc.stair_type,
+            }
+            for loc in Location.objects.all()
+        ]
+
+        cache.set("locations_data", locations, 3600)
+
+    if connections is None:
+        connections = [
+            {
+                "from": conn.from_location.room_name,
+                "to": conn.to_location.room_name,
+                "cost": conn.cost,
+                "from_floor": conn.from_location.floor_location,
+                "to_floor": conn.to_location.floor_location,
+            }
+            for conn in Connection.objects.select_related(
+                "from_location",
+                "to_location"
+            )
+        ]
+
+        cache.set("connections_data", connections, 3600)
 
     return render(request, "index.html", {
-        "locations": data,
-        "connections": connections_data,
+        "locations": locations,
+        "connections": connections,
         "path": [],
     })
 
