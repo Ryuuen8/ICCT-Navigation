@@ -551,6 +551,13 @@ function handleScannedLocation() {
         currentFloor = location.floor;
         switchFloor(location.floor);
 
+        // ✅ clear any previous scanned marker first
+        if (scannedLocationMarker) {
+            floors[currentFloor]?.layer.removeLayer(scannedLocationMarker);
+            if (map.hasLayer(scannedLocationMarker)) map.removeLayer(scannedLocationMarker);
+            scannedLocationMarker = null;
+        }
+
         const marker = L.circleMarker([location.y, location.x], {
             radius: 15,
             fillColor: '#FF6B6B',
@@ -573,29 +580,79 @@ function handleScannedLocation() {
         floors[location.floor].layer.addLayer(marker);
         marker.openPopup();
 
-        // ✅ handle pending navigation (QR scan → destination flow)
+        // ✅ assign to scannedLocationMarker so switchFloor can remove it
+        scannedLocationMarker = marker;
+
         const pendingDestination = sessionStorage.getItem(PENDING_DESTINATION_KEY);
         if (pendingDestination) {
             sessionStorage.removeItem(PENDING_DESTINATION_KEY);
             if (location.name) {
                 requestPath(location.name, pendingDestination);
             } else {
-                alert('QR location found, but it does not include a room name for navigation.');
+                alert('QR location found, but it does not include a room name.');
             }
-            return; // skip the "set as start" logic below
+            return;
         }
 
-        // ✅ register as pathfinding start point
         if (location.name) {
             selected = [location.name];
-            setPathfindingMode(true); // activate so user just taps destination
-
-            showPathFoundToast(`From: ${location.name} — now tap your destination`);
+            setPathfindingMode(true);
+            showStartToast(location.name);
         }
 
     } catch (error) {
         console.error('Error handling scanned location:', error);
     }
+}
+
+function showStartToast(locationName) {
+    const existing = document.getElementById('pathfound-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'pathfound-toast';
+    toast.innerHTML = `
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,107,107,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="fa-solid fa-location-dot" style="color:#FF6B6B;font-size:16px;"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;letter-spacing:1px;color:#94A3B8;text-transform:uppercase;">Start set</div>
+            <div style="font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(locationName)}</div>
+            <div style="font-size:12px;color:#94A3B8;margin-top:2px;">Tap a destination on the map</div>
+        </div>
+    `;
+
+    Object.assign(toast.style, {
+        position: 'fixed',
+        bottom: '110px',
+        left: '50%',
+        transform: 'translateX(-50%) translateY(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        background: 'rgba(15, 23, 42, 0.97)',
+        padding: '12px 16px',
+        borderRadius: '14px',
+        border: '1px solid rgba(255,107,107,0.4)',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+        zIndex: 2000,
+        fontFamily: "'Helvetica Neue', Arial, sans-serif",
+        maxWidth: '320px',
+        opacity: '0',
+        transition: 'opacity 0.25s ease, transform 0.25s ease'
+    });
+
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(-50%) translateY(0)';
+    });
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 250);
+    }, 4000);
 }
 const currentPathLayers = [];
 
