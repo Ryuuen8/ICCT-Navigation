@@ -79,18 +79,26 @@
                             name: name || 'Scanned Location'
                         };
 
-                        // Store in sessionStorage
                         sessionStorage.setItem('scannedLocation', JSON.stringify(scanned));
-
                         console.log('📍 Scanned location stored:', scanned);
 
-                        // Show a success message
-                        showToast(`📍 Location "${scanned.name}" scanned! Go to map to see it.`);
+                        // ✅ check if pending emergency route
+                        const pendingEmergency = sessionStorage.getItem('pendingEmergencyRoute');
+                        const pendingDestination = sessionStorage.getItem('pendingNavigationDestination');
 
+                        if (pendingEmergency === 'true' && pendingDestination) {
+                            sessionStorage.removeItem('pendingEmergencyRoute');
+                            sessionStorage.removeItem('EMERGENCY_SCAN_MODE');
+                            // redirect to map with emergency route
+                            window.location.href = `/map/?start=${encodeURIComponent(scanned.name)}&end=${encodeURIComponent(pendingDestination)}&emergency=true`;
+                            return true;
+                        }
+
+                        // ✅ normal scan — redirect to map on correct floor
+                        window.location.href = `/map/?floor=${scanned.floor}`;
                         return true;
+
                     } else {
-                        console.log('Not a location QR code, opening URL:', scannedUrl);
-                        // If it's a regular URL, open it
                         window.location.href = scannedUrl;
                         return false;
                     }
@@ -109,37 +117,37 @@
                 const toast = document.createElement('div');
                 toast.id = 'scanner-toast';
                 toast.innerHTML = `
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <i class="fa-solid fa-qrcode" style="color:#00E5FF;font-size:20px;"></i>
-                            <span style="color:white;font-size:14px;">${message}</span>
-                        </div>
-                    `;
+                            <div style="display:flex;align-items:center;gap:12px;">
+                                <i class="fa-solid fa-qrcode" style="color:#00E5FF;font-size:20px;"></i>
+                                <span style="color:white;font-size:14px;">${message}</span>
+                            </div>
+                        `;
                 toast.style.cssText = `
-                        position: fixed;
-                        bottom: 100px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        background: rgba(0,0,0,0.9);
-                        color: white;
-                        padding: 12px 20px;
-                        border-radius: 12px;
-                        border: 1px solid #00E5FF;
-                        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-                        z-index: 10000;
-                        font-family: 'Helvetica Neue', Arial, sans-serif;
-                        max-width: 90%;
-                        text-align: center;
-                        animation: slideUp 0.3s ease;
-                    `;
+                            position: fixed;
+                            bottom: 100px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            background: rgba(0,0,0,0.9);
+                            color: white;
+                            padding: 12px 20px;
+                            border-radius: 12px;
+                            border: 1px solid #00E5FF;
+                            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+                            z-index: 10000;
+                            font-family: 'Helvetica Neue', Arial, sans-serif;
+                            max-width: 90%;
+                            text-align: center;
+                            animation: slideUp 0.3s ease;
+                        `;
 
                 // Add animation
                 const style = document.createElement('style');
                 style.textContent = `
-                        @keyframes slideUp {
-                            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-                            to { opacity: 1; transform: translateX(-50%) translateY(0); }
-                        }
-                    `;
+                            @keyframes slideUp {
+                                from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+                                to { opacity: 1; transform: translateX(-50%) translateY(0); }
+                            }
+                        `;
                 document.head.appendChild(style);
 
                 document.body.appendChild(toast);
@@ -239,38 +247,38 @@
                 const container = document.createElement('div');
                 container.id = 'scanner-container';
                 container.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: rgba(0,0,0,0.95);
-                        z-index: 9999;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                    `;
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background: rgba(0,0,0,0.95);
+                            z-index: 9999;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                        `;
 
                 // Close button
                 const closeBtn = document.createElement('button');
                 closeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Close';
                 closeBtn.style.cssText = `
-                        position: absolute;
-                        top: 20px;
-                        right: 20px;
-                        background: rgba(255,255,255,0.1);
-                        color: white;
-                        border: 1px solid rgba(255,255,255,0.2);
-                        padding: 10px 20px;
-                        border-radius: 8px;
-                        font-size: 14px;
-                        cursor: pointer;
-                        z-index: 10000;
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                    `;
+                            position: absolute;
+                            top: 20px;
+                            right: 20px;
+                            background: rgba(255,255,255,0.1);
+                            color: white;
+                            border: 1px solid rgba(255,255,255,0.2);
+                            padding: 10px 20px;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            cursor: pointer;
+                            z-index: 10000;
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                        `;
                 closeBtn.onmouseover = () => {
                     closeBtn.style.background = 'rgba(255,255,255,0.2)';
                 };
@@ -291,39 +299,39 @@
                 const title = document.createElement('h2');
                 title.textContent = 'Scan QR Code';
                 title.style.cssText = `
-                        color: white;
-                        margin-bottom: 20px;
-                        font-weight: 300;
-                        letter-spacing: 1px;
-                    `;
+                            color: white;
+                            margin-bottom: 20px;
+                            font-weight: 300;
+                            letter-spacing: 1px;
+                        `;
                 container.appendChild(title);
 
                 // Video element
                 const video = document.createElement('video');
                 video.id = 'scanner-video';
                 video.style.cssText = `
-                        width: 100%;
-                        max-width: 500px;
-                        height: auto;
-                        border-radius: 12px;
-                        background: #000;
-                    `;
+                            width: 100%;
+                            max-width: 500px;
+                            height: auto;
+                            border-radius: 12px;
+                            background: #000;
+                        `;
                 container.appendChild(video);
 
                 // Scanning frame overlay
                 const frame = document.createElement('div');
                 frame.style.cssText = `
-                        position: absolute;
-                        top: 50%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);
-                        width: 250px;
-                        height: 250px;
-                        border: 2px solid #00E5FF;
-                        border-radius: 12px;
-                        box-shadow: 0 0 30px rgba(0,229,255,0.2);
-                        pointer-events: none;
-                    `;
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            transform: translate(-50%, -50%);
+                            width: 250px;
+                            height: 250px;
+                            border: 2px solid #00E5FF;
+                            border-radius: 12px;
+                            box-shadow: 0 0 30px rgba(0,229,255,0.2);
+                            pointer-events: none;
+                        `;
 
                 // Corner markers
                 const corners = [{
@@ -351,11 +359,11 @@
                 corners.forEach(corner => {
                     const marker = document.createElement('div');
                     marker.style.cssText = `
-                            position: absolute;
-                            ${Object.entries(corner).map(([key, val]) => `${key}: ${val};`).join(' ')}
-                            width: 20px;
-                            height: 20px;
-                        `;
+                                position: absolute;
+                                ${Object.entries(corner).map(([key, val]) => `${key}: ${val};`).join(' ')}
+                                width: 20px;
+                                height: 20px;
+                            `;
                     frame.appendChild(marker);
                 });
 
@@ -365,10 +373,10 @@
                 const instruction = document.createElement('p');
                 instruction.textContent = 'Position QR code in the frame';
                 instruction.style.cssText = `
-                        color: rgba(255,255,255,0.7);
-                        margin-top: 20px;
-                        font-size: 14px;
-                    `;
+                            color: rgba(255,255,255,0.7);
+                            margin-top: 20px;
+                            font-size: 14px;
+                        `;
                 container.appendChild(instruction);
 
                 return container;

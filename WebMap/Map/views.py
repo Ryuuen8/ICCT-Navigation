@@ -496,4 +496,27 @@ def save_connection(request):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)    
-#Testing for pathfinding using foliumfrom django.shortcuts import render, redirect
+
+def emergency_paths(request):
+    connections = Connection.objects.filter(
+        is_emergency=True
+    ).select_related('from_location', 'to_location')
+
+    data = [
+        {
+            "from": [
+                conn.from_location.y_coordinate,
+                conn.from_location.x_coordinate,
+                conn.from_location.floor_location
+            ],
+            "to": [
+                conn.to_location.y_coordinate,
+                conn.to_location.x_coordinate,
+                conn.to_location.floor_location
+            ],
+        }
+        for conn in connections
+    ]
+
+    return JsonResponse(data, safe=False)
+

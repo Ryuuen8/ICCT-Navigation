@@ -18,7 +18,7 @@ urlpatterns = [
     path('floormap/', views.floormap, name="floormap"),
     path('offline/', views.offline, name="offline"),
     path('offline-map/', views.offline_map, name="offline_map"),
-    
+    path('map/emergency-paths/', views.emergency_paths, name="emergency-paths"),
     path('locate/', views.locate, name="locate"),
     path('submit-report/', views.announcement, name="report"),
     path('search/', views.search, name="search"),

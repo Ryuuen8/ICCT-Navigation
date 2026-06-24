@@ -595,10 +595,8 @@
         window.getScannedLocation = getScannedLocation;
     })();
 </script>
-<!-- EMERGENCY POPUP LOGIC - FIXED with correct emergency exit name -->
 <script>
     (function() {
-        // ✅ CORRECT: Use the actual database name of your emergency exit
         const EMERGENCY_EXIT_NAME = 'EMERGENCY EXIT 1';
         const FLOOR_MAP_URL = "{% url 'mainmap' %}";
 
@@ -641,7 +639,6 @@
             popup.setAttribute('aria-hidden', 'true');
         }
 
-        // 🚨 1. USE LAST SCANNED LOCATION → ROUTE TO EMERGENCY EXIT
         function goFromLastScan() {
             const last = getLastKnownLocation();
 
@@ -650,13 +647,11 @@
                 return;
             }
 
-            // ✅ Use the actual emergency exit name from your database
             const url = `${FLOOR_MAP_URL}?start=${encodeURIComponent(last.name)}&end=${encodeURIComponent(EMERGENCY_EXIT_NAME)}&emergency=true`;
             console.log('🚨 Emergency route from last scan:', url);
             window.location.href = url;
         }
 
-        // 🚨 2. SCAN NEW LOCATION → THEN ROUTE TO EMERGENCY EXIT
         function goFromNewScan() {
             // Set pending flags for after scan
             sessionStorage.setItem('pendingNavigationDestination', EMERGENCY_EXIT_NAME);
@@ -675,7 +670,7 @@
 
         // 🚨 3. VIEW ALL FLOOR EXITS
         function goToAllFloorExits() {
-            window.location.href = `${FLOOR_MAP_URL}?emergency=true&showAllExits=true`;
+            window.location.href = `${FLOOR_MAP_URL}?emergency=true`;
         }
 
         // Event Listeners

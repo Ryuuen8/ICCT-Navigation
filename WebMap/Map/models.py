@@ -21,6 +21,7 @@ class Location(models.Model):
     coordinates = models.JSONField(default=list)
     y_coordinate = models.FloatField()
     x_coordinate = models.FloatField()
+    is_emergency = models.BooleanField(default=False)
     
 
     def __str__(self):
@@ -30,6 +31,7 @@ class Connection(models.Model):
     from_location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="from_conn")
     to_location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="to_conn")
     cost = models.FloatField()
+    is_emergency = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.from_location.room_name} → {self.to_location.room_name}"    

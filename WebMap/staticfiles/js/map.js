@@ -334,7 +334,117 @@ function startQrNavigation(destinationName) {
         alert('QR scanner is not available on this page.');
     }
 }
+const emergencyAllExitsBtn = document.getElementById('emergencyAllExitsBtn');
+if (emergencyAllExitsBtn) {
+    emergencyAllExitsBtn.addEventListener('click', toggleEmergencyPaths);
+}
 
+let emergencyLayer = L.layerGroup();
+let emergencyCache = null;
+let isLoadingEmergency = false;
+let pulseTimers = [];
+
+function startPulse(decorator) {
+    let opacity = 0.9;
+    let direction = -1;
+
+    const timer = setInterval(() => {
+        opacity += direction * 0.05;
+        if (opacity <= 0.3) direction = 1;
+        if (opacity >= 0.9) direction = -1;
+
+        decorator.setPatterns([{
+            offset: 0,
+            repeat: 20,
+            symbol: L.Symbol.arrowHead({
+                pixelSize: 10,
+                polygon: false,
+                pathOptions: {
+                    color: 'red',
+                    weight: 2,
+                    opacity: opacity
+                }
+            })
+        }]);
+    }, 80);
+
+    pulseTimers.push(timer);
+}
+
+function clearPulseAnimations() {
+    pulseTimers.forEach(t => clearInterval(t));
+    pulseTimers = [];
+}
+
+async function toggleEmergencyPaths() {
+    if (map.hasLayer(emergencyLayer)) {
+        map.removeLayer(emergencyLayer);
+        clearPulseAnimations();
+        return;
+    }
+
+    if (isLoadingEmergency) return;
+
+    try {
+        isLoadingEmergency = true;
+
+        if (!emergencyCache) {
+            const res = await fetch('emergency-paths/');
+            if (!res.ok) throw new Error("Failed to load emergency paths");
+            emergencyCache = await res.json();
+        }
+
+        emergencyLayer.clearLayers();
+        clearPulseAnimations();
+
+        emergencyCache.forEach(path => {
+            const from = path.from;
+            const to = path.to;
+
+            if (String(from[2]) !== String(currentFloor) ||
+                String(to[2]) !== String(currentFloor)) return;
+
+            const coords = [
+                [from[0], from[1]],
+                [to[0], to[1]]
+            ];
+
+            const decorator = L.polylineDecorator(coords, {
+                patterns: [
+                    {
+                        offset: 0,
+                        repeat: 20,
+                        symbol: L.Symbol.arrowHead({
+                            pixelSize: 10,
+                            polygon: false,
+                            pathOptions: {
+                                color: 'red',
+                                weight: 2,
+                                opacity: 0.9
+                            }
+                        })
+                    }
+                ]
+            }).addTo(emergencyLayer);
+
+            startPulse(decorator);
+        });
+
+        emergencyLayer.addTo(map);
+
+    } catch (err) {
+        console.error("Emergency paths error:", err);
+        alert("Could not load emergency paths. Please try again.");
+    } finally {
+        isLoadingEmergency = false;
+    }
+}
+
+// auto-trigger from ?emergency=true redirect
+const params = new URLSearchParams(window.location.search);
+if (params.get('emergency') === 'true') {
+    map.whenReady(() => toggleEmergencyPaths());
+}
 function openNavigatePopup() {
     closeNavigatePopup();
 
@@ -428,7 +538,6 @@ function handleScannedLocation() {
                 floor: parseInt(floor, 10),
                 name: name
             });
-            // Store it in sessionStorage so it persists
             sessionStorage.setItem('scannedLocation', scannedData);
             history.replaceState(null, '', window.location.pathname);
         }
@@ -438,13 +547,10 @@ function handleScannedLocation() {
 
     try {
         const location = JSON.parse(scannedData);
-        // ✅ DON'T remove it here - keep it in sessionStorage for the home page
 
-        // Switch to the correct floor
         currentFloor = location.floor;
         switchFloor(location.floor);
 
-        // Create a marker at the scanned coordinates
         const marker = L.circleMarker([location.y, location.x], {
             radius: 15,
             fillColor: '#FF6B6B',
@@ -467,27 +573,30 @@ function handleScannedLocation() {
         floors[location.floor].layer.addLayer(marker);
         marker.openPopup();
 
+        // ✅ handle pending navigation (QR scan → destination flow)
         const pendingDestination = sessionStorage.getItem(PENDING_DESTINATION_KEY);
         if (pendingDestination) {
             sessionStorage.removeItem(PENDING_DESTINATION_KEY);
-
             if (location.name) {
                 requestPath(location.name, pendingDestination);
             } else {
                 alert('QR location found, but it does not include a room name for navigation.');
             }
+            return; // skip the "set as start" logic below
         }
 
-        console.log('Scanned location displayed:', location);
+        // ✅ register as pathfinding start point
+        if (location.name) {
+            selected = [location.name];
+            setPathfindingMode(true); // activate so user just taps destination
 
-        // ✅ Keep the location in sessionStorage so home page shows it
-        // Only remove it if the user explicitly clears it or after navigation completes
+            showPathFoundToast(`From: ${location.name} — now tap your destination`);
+        }
 
     } catch (error) {
         console.error('Error handling scanned location:', error);
     }
 }
-
 const currentPathLayers = [];
 
 function clearCurrentPath() {
@@ -779,7 +888,6 @@ locations.forEach(function (loc) {
         }
     });
 });
-
 function switchFloor(floor) {
     if (!floors[floor]) return;
 
@@ -798,18 +906,21 @@ function switchFloor(floor) {
         }
     });
 
-    // ✅ REMOVE the scanned location marker when switching floors
+    // Remove scanned location marker
     if (scannedLocationMarker) {
-        // Remove from the floor layer if it was added there
         if (floors[previousFloor] && floors[previousFloor].layer) {
             floors[previousFloor].layer.removeLayer(scannedLocationMarker);
         }
-        // Also remove from map directly if it was added
         if (map.hasLayer(scannedLocationMarker)) {
             map.removeLayer(scannedLocationMarker);
         }
         scannedLocationMarker = null;
     }
+
+    // ✅ clear emergency paths on floor switch
+    const emergencyWasShowing = map.hasLayer(emergencyLayer);
+    emergencyLayer.clearLayers();
+    map.removeLayer(emergencyLayer);
 
     currentFloor = floor;
 
@@ -823,6 +934,11 @@ function switchFloor(floor) {
             map.addLayer(layer);
         }
     });
+
+    // ✅ re-render emergency paths for new floor if they were active
+    if (emergencyWasShowing) {
+        toggleEmergencyPaths();
+    }
 }
 
 document.querySelectorAll(".floor-item").forEach((btn) => {

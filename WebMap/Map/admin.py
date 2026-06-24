@@ -27,9 +27,10 @@ class LocationAdmin(admin.ModelAdmin):
 
 @admin.register(Connection)
 class ConnectionAdmin(admin.ModelAdmin):
-    list_display = ("from_location", "to_location", "cost")
+    list_display = ("from_location", "to_location", "cost", "is_emergency")
     search_fields = ("from_location__room_name", "to_location__room_name")
     autocomplete_fields = ("from_location", "to_location")
+    
 
 
 @admin.register(Announcement)
