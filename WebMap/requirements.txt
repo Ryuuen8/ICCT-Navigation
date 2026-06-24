@@ -8,6 +8,7 @@ cssbeautifier==1.15.4
 Django==6.0.4
 django-leaflet==0.33.0
 django-pwa==2.0.1
+django-redis==7.0.0
 djangorestframework==3.17.1
 djlint==1.36.4
 EditorConfig==0.17.1
@@ -25,6 +26,7 @@ pathspec==1.1.1
 pillow==12.2.0
 PyYAML==6.0.3
 qrcode==8.2
+redis==8.0.1
 regex==2026.5.9
 requests==2.34.0
 shapely==2.1.2
