@@ -14,69 +14,117 @@ from .serializers import LocationSerializer, ConnectionSerializer, AnnouncementS
 from django.contrib.auth.decorators import login_required, user_passes_test
 from rest_framework.permissions import IsAdminUser
 from django.core.cache import cache
-# Create your views here.
 
 
 def staff_check(user):
     return user.is_staff
 
+
+def clear_map_cache():
+    cache.delete('locations_data')
+    cache.delete('connections_data')
+    cache.delete('emergency_paths_data')
+    cache.delete('floormap_locations')
+
+
 class LocationViewSet(viewsets.ModelViewSet):
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
     permission_classes = [IsAdminUser]
-    
+
+    def perform_create(self, serializer):
+        serializer.save()
+        clear_map_cache()
+
+    def perform_update(self, serializer):
+        serializer.save()
+        clear_map_cache()
+
+    def perform_destroy(self, instance):
+        instance.delete()
+        clear_map_cache()
+
+
 class ConnectionViewSet(viewsets.ModelViewSet):
     queryset = Connection.objects.select_related('from_location', 'to_location').all()
     serializer_class = ConnectionSerializer
     permission_classes = [IsAdminUser]
-    
+
+    def perform_create(self, serializer):
+        serializer.save()
+        clear_map_cache()
+
+    def perform_update(self, serializer):
+        serializer.save()
+        clear_map_cache()
+
+    def perform_destroy(self, instance):
+        instance.delete()
+        clear_map_cache()
+
+
 class AnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.select_related('from_location', 'to_location').all()
     serializer_class = AnnouncementSerializer
     permission_classes = [IsAdminUser]
+
 
 class HazardReportViewSet(viewsets.ModelViewSet):
     queryset = HazardReport.objects.all()
     serializer_class = HazardReportSerializer
     permission_classes = [IsAdminUser]
 
+
 def announcement(request):
     if request.method == "POST":
         form = ReportForm(request.POST, request.FILES)
-        
         if form.is_valid():
             form.save()
             messages.success(request, "Form Submitted")
             return redirect('main')
     else:
         form = ReportForm()
-        
+
     items = Announcement.objects.select_related('to_location', 'from_location').all()
-    context = {'items': items, 'form':form, 'items_count': items.count()}
-    
+    context = {'items': items, 'form': form, 'items_count': items.count()}
     return render(request, 'main.html', context)
 
+
 def floormap(request):
-    locations = Location.objects.exclude(Q(room_name__contains="H1") | Q(room_name__startswith="Stair")| Q(room_name__contains="H2")| Q(room_name__contains="H3")|
-                                         Q(room_name__contains="H4")| Q(room_name__contains="H5")| Q(room_name__contains="HEX")|Q(room_name__contains="STAIR")
-                                         | Q(room_name__contains="EMERGENCY NODE")|Q(room_name__contains="NULL"))
-    return render(request,'floor-maps.html', {"locations":locations})
+    locations = cache.get('floormap_locations')
+
+    if locations is None:
+        locations = list(
+            Location.objects.exclude(
+                Q(room_name__contains="H1") |
+                Q(room_name__startswith="Stair") |
+                Q(room_name__contains="H2") |
+                Q(room_name__contains="H3") |
+                Q(room_name__contains="H4") |
+                Q(room_name__contains="H5") |
+                Q(room_name__contains="HEX") |
+                Q(room_name__contains="STAIR") |
+                Q(room_name__contains="EMERGENCY NODE") |
+                Q(room_name__contains="NULL")
+            )
+        )
+        cache.set('floormap_locations', locations, 3600)
+
+    return render(request, 'floor-maps.html', {"locations": locations})
+
 
 def emergency(request):
     return render(request, 'emergencty.html')
 
+
 def search(request):
-    query = request.GET.get('term', '')     
+    query = request.GET.get('term', '')
     products = Location.objects.filter(name__icontains=query)[:10]
     results = [product.name for product in products]
     return JsonResponse(results, safe=False)
-    
-def locate(request):
-    """Handle QR code scans with coordinates.
 
-    Expects URL params: x, y, floor, name
-    Redirects to the map page so both in-app and external scans work.
-    """
+
+def locate(request):
     x = request.GET.get('x')
     y = request.GET.get('y')
     floor = request.GET.get('floor')
@@ -97,6 +145,7 @@ def locate(request):
         query_string += f"&name={name}"
 
     return redirect(f"/map/{query_string}")
+
 
 def pathfind(request):
     if request.method != "POST":
@@ -126,7 +175,6 @@ def pathfind(request):
         if "emergency node" in loc.room_name.lower()
     }
 
-    # Build nodes
     for loc in locations:
         stair_type = loc.stair_type
         if stair_type is None and "stair" in loc.room_name.lower():
@@ -142,7 +190,6 @@ def pathfind(request):
             stair_type=stair_type,
         )
 
-    # Build edges
     for conn in Connection.objects.all():
         from_floor = conn.from_location.floor_location
         to_floor = conn.to_location.floor_location
@@ -165,16 +212,11 @@ def pathfind(request):
 
     start_floor = G.nodes[start]["pos"][2]
     end_floor = G.nodes[end]["pos"][2]
-
     same_floor = (start_floor == end_floor)
 
-    # direction rule
-    if same_floor:
-        allowed_direction = None
-    else:
-        allowed_direction = (
-            "up" if start_floor < end_floor else "down"
-        )
+    allowed_direction = None if same_floor else (
+        "up" if start_floor < end_floor else "down"
+    )
 
     blocked_rooms = {"Library"}
     allowed_endpoints = {start, end}
@@ -183,20 +225,16 @@ def pathfind(request):
     H.add_nodes_from(G.nodes(data=True))
 
     for u, v, edge_data in G.edges(data=True):
-
         floor_diff = edge_data.get("floor_diff", 0)
 
-        # ❌ BLOCK STAIRS if same floor navigation
         if same_floor and floor_diff != 0:
             continue
 
-        # blocked rooms
         if u in blocked_rooms and u not in allowed_endpoints:
             continue
         if v in blocked_rooms and v not in allowed_endpoints:
             continue
 
-        # emergency filtering
         if not is_emergency:
             if u in emergency_rooms and u not in allowed_endpoints:
                 continue
@@ -223,10 +261,7 @@ def pathfind(request):
     try:
         path = nx.astar_path(H, start, end, heuristic=heuristic, weight="weight")
     except nx.NetworkXNoPath:
-        return JsonResponse(
-            {"error": "No path found between these rooms"},
-            status=404
-        )
+        return JsonResponse({"error": "No path found between these rooms"}, status=404)
 
     full_coords = []
     segments = []
@@ -244,30 +279,23 @@ def pathfind(request):
 
         if floor != current_floor:
             if len(current_segment) >= 2:
-                segments.append({
-                    "floor": current_floor,
-                    "coords": current_segment
-                })
+                segments.append({"floor": current_floor, "coords": current_segment})
             current_floor = floor
             current_segment = [[y, x]]
         else:
             current_segment.append([y, x])
 
     if len(current_segment) >= 2:
-        segments.append({
-            "floor": current_floor,
-            "coords": current_segment
-        })
+        segments.append({"floor": current_floor, "coords": current_segment})
 
     return JsonResponse({
         "path": full_coords,
         "segments": segments,
         "destination": end
     })
-    
-    
-def index(request):
 
+
+def index(request):
     locations = cache.get("locations_data")
     connections = cache.get("connections_data")
 
@@ -284,7 +312,6 @@ def index(request):
             }
             for loc in Location.objects.all()
         ]
-
         cache.set("locations_data", locations, 3600)
 
     if connections is None:
@@ -296,12 +323,8 @@ def index(request):
                 "from_floor": conn.from_location.floor_location,
                 "to_floor": conn.to_location.floor_location,
             }
-            for conn in Connection.objects.select_related(
-                "from_location",
-                "to_location"
-            )
+            for conn in Connection.objects.select_related("from_location", "to_location")
         ]
-
         cache.set("connections_data", connections, 3600)
 
     return render(request, "index.html", {
@@ -309,6 +332,7 @@ def index(request):
         "connections": connections,
         "path": [],
     })
+
 
 def offline_map(request):
     locations = Location.objects.all()
@@ -332,9 +356,7 @@ def offline_map(request):
             "from_floor": conn.from_location.floor_location,
             "to_floor": conn.to_location.floor_location,
         }
-        for conn in Connection.objects.select_related(
-            "from_location", "to_location"
-        ).all()
+        for conn in Connection.objects.select_related("from_location", "to_location").all()
     ]
 
     return render(request, "offline-map.html", {
@@ -342,14 +364,16 @@ def offline_map(request):
         "connections": connections_data,
         "path": [],
     })
-    
+
+
 def offline(request):
     return render(request, 'offline.html')
+
 
 @login_required(login_url="admin:login")
 @user_passes_test(staff_check)
 def admin_dashboard(request):
-    locations  = Location.objects.all()
+    locations = Location.objects.all()
     data = [
         {
             "floor": loc.floor_location,
@@ -361,18 +385,16 @@ def admin_dashboard(request):
     ]
     G = nx.Graph()
     for loc in locations:
-        G.add_node(loc.room_name, pos=(loc.floor_location,loc.x_coordinate, loc.y_coordinate))
+        G.add_node(loc.room_name, pos=(loc.floor_location, loc.x_coordinate, loc.y_coordinate))
     for conn in Connection.objects.all():
-        G.add_edge(            
-            conn.from_location.room_name,
-            conn.to_location.room_name,
-            weight=conn.cost)
-    return render(request, 'admin/admin-dashboard.html',{"locations": data})
+        G.add_edge(conn.from_location.room_name, conn.to_location.room_name, weight=conn.cost)
+    return render(request, 'admin/admin-dashboard.html', {"locations": data})
+
 
 @login_required(login_url="admin:login")
 @user_passes_test(staff_check)
 def admin_management(request):
-    locations  = Location.objects.all()
+    locations = Location.objects.all()
     data = [
         {
             "floor": loc.floor_location,
@@ -384,13 +406,10 @@ def admin_management(request):
     ]
     G = nx.Graph()
     for loc in locations:
-        G.add_node(loc.room_name, pos=(loc.floor_location,loc.x_coordinate, loc.y_coordinate))
+        G.add_node(loc.room_name, pos=(loc.floor_location, loc.x_coordinate, loc.y_coordinate))
     for conn in Connection.objects.all():
-        G.add_edge(            
-            conn.from_location.room_name,
-            conn.to_location.room_name,
-            weight=conn.cost)
-    return render(request, 'admin/admin-management.html',{"locations": data})
+        G.add_edge(conn.from_location.room_name, conn.to_location.room_name, weight=conn.cost)
+    return render(request, 'admin/admin-management.html', {"locations": data})
 
 
 @csrf_exempt
@@ -408,7 +427,6 @@ def save_room(request):
             return JsonResponse({"error": "No rooms provided"}, status=400)
 
         created = 0
-
         for room in rooms:
             room_name = room.get("room_name")
             floor = room.get("floor")
@@ -416,7 +434,6 @@ def save_room(request):
             y = room.get("center_y")
             polygon = room.get("polygon")
 
-            # safety check (THIS PREVENTS 500s)
             if None in [room_name, floor, x, y, polygon]:
                 continue
 
@@ -427,20 +444,16 @@ def save_room(request):
                 y_coordinate=y,
                 coordinates=polygon
             )
-
             created += 1
 
-        return JsonResponse({
-            "status": "saved",
-            "created": created
-        })
+        clear_map_cache()
+        return JsonResponse({"status": "saved", "created": created})
 
     except Exception as e:
-        return JsonResponse({
-            "error": "server crash",
-            "detail": str(e)
-        }, status=500)    
-@csrf_exempt  # remove if you're already handling CSRF properly
+        return JsonResponse({"error": "server crash", "detail": str(e)}, status=500)
+
+
+@csrf_exempt
 def save_connection(request):
     if request.method != "POST":
         return JsonResponse({"error": "invalid method"}, status=400)
@@ -450,79 +463,65 @@ def save_connection(request):
 
         from_room = data.get("from_room")
         to_room = data.get("to_room")
-
         from_x = data.get("from_x")
         from_y = data.get("from_y")
         to_x = data.get("to_x")
         to_y = data.get("to_y")
 
-        # -----------------------------
-        # BASIC VALIDATION
-        # -----------------------------
         if not from_room or not to_room:
             return JsonResponse({"error": "Missing room names"}, status=400)
 
-        # -----------------------------
-        # FIND OBJECTS
-        # -----------------------------
         try:
             from_obj = Location.objects.get(room_name=from_room)
             to_obj = Location.objects.get(room_name=to_room)
         except Location.DoesNotExist:
             return JsonResponse({"error": "Room not found"}, status=404)
 
-        # -----------------------------
-        # OPTIONAL: compute cost if not provided
-        # -----------------------------
         cost = data.get("cost")
-
         if cost is None:
-            # fallback: simple euclidean distance
             try:
                 cost = ((to_x - from_x) ** 2 + (to_y - from_y) ** 2) ** 0.5
             except Exception:
                 cost = 1.0
 
-        # -----------------------------
-        # CREATE CONNECTION
-        # -----------------------------
         conn = Connection.objects.create(
             from_location=from_obj,
             to_location=to_obj,
             cost=float(cost)
         )
 
-        return JsonResponse({
-            "status": "saved",
-            "connection_id": conn.id
-        })
+        clear_map_cache()
+        return JsonResponse({"status": "saved", "connection_id": conn.id})
 
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
-
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)    
+        return JsonResponse({"error": str(e)}, status=500)
+
 
 def emergency_paths(request):
-    connections = Connection.objects.filter(
-        is_emergency=True
-    ).select_related('from_location', 'to_location')
+    data = cache.get('emergency_paths_data')
 
-    data = [
-        {
-            "from": [
-                conn.from_location.y_coordinate,
-                conn.from_location.x_coordinate,
-                conn.from_location.floor_location
-            ],
-            "to": [
-                conn.to_location.y_coordinate,
-                conn.to_location.x_coordinate,
-                conn.to_location.floor_location
-            ],
-        }
-        for conn in connections
-    ]
+    if data is None:
+        connections = Connection.objects.filter(
+            is_emergency=True
+        ).select_related('from_location', 'to_location')
+
+        data = [
+            {
+                "from": [
+                    conn.from_location.y_coordinate,
+                    conn.from_location.x_coordinate,
+                    conn.from_location.floor_location
+                ],
+                "to": [
+                    conn.to_location.y_coordinate,
+                    conn.to_location.x_coordinate,
+                    conn.to_location.floor_location
+                ],
+            }
+            for conn in connections
+        ]
+        cache.set('emergency_paths_data', data, 3600)
 
     return JsonResponse(data, safe=False)
-
