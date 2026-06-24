@@ -4,46 +4,55 @@
     active
 {% endblock nav_map %}
 {% block content %}
-    <!-- ✅ correct latest version -->
+    <!-- Third-party libraries -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.min.js"></script>
-    <script src="{% static "js/script.js" %}"></script>
-    <!-- Leaflet map -->
+    <!-- App scripts -->
+    <script src="{% static 'js/script.js' %}"></script>
+    <!-- Map -->
     <div id="map"></div>
+    <!-- Search -->
     <div class="search-container">
         <input type="text"
                id="searchInput"
                placeholder="Search locations..."
-               autocomplete="off">
+               autocomplete="off"
+               aria-label="Search locations">
         <ul id="suggestionsList" class="suggestions-list">
         </ul>
     </div>
+    <!-- Navigation Button -->
     <div class="action-container">
-        <button id="navbtn" class="navigate-button">
+        <button id="navbtn" class="navigate-button" aria-label="Start Navigation">
             <i class="fa-solid fa-location-arrow"></i>
         </button>
     </div>
+    <!-- Floor Selector -->
     <div class="floor-container">
         <div class="fmenu-container">
-            <button class="floors-box"
-                    id="floorBtn"
+            <button id="floorBtn"
+                    class="floors-box"
                     aria-expanded="false"
                     aria-controls="floorMenu">
                 <span class="floors">Floors</span>
             </button>
-            <div class="floor-menu" id="floorMenu">
+            <div id="floorMenu" class="floor-menu">
                 <button class="floor-item" data-floor="1">F1</button>
                 <button class="floor-item" data-floor="2">F2</button>
+                <div class="floor-item floor-section" data-floor="21">2B</div>
                 <button class="floor-item" data-floor="3">F3</button>
+                <div class="floor-item floor-section" data-floor="31">3B</div>
                 <button class="floor-item" data-floor="4">F4</button>
                 <button class="floor-item" data-floor="5">F5</button>
+                <button class="floor-item floor-section" data-floor="6">F6</button>
             </div>
         </div>
     </div>
+    <!-- Serialized Django Data -->
     {{ locations|json_script:"locations-data" }}
     {{ connections|json_script:"connections-data" }}
     {{ path|json_script:"path-data" }}
-{% endblock %}
+{% endblock content %}
 {% block extra_scripts %}
-    <script src="{% static "js/offline/pathfind.js" %}"></script>
-    <script src="{% static "js/map.js" %}?v=20260621-zoom-fit"></script>
-{% endblock %}
+    <script src="{% static 'js/offline/pathfind.js' %}"></script>
+    <script src="{% static 'js/map.js' %}?v=20260621-zoom-fit"></script>
+{% endblock extra_scripts %}

@@ -6,11 +6,14 @@ console.log("MAP JS LOADED - ADMIN PANEL");
 
 // --- Use each floor plan's real SVG dimensions for accurate fit/zoom. ---
 const floorPlans = {
-    1: { imageUrl: '/static/images/1.svg', width: 934, height: 817 },
-    2: { imageUrl: '/static/images/2.svg', width: 920, height: 639 },
-    3: { imageUrl: '/static/images/3.svg', width: 920, height: 636 },
-    4: { imageUrl: '/static/images/4.svg', width: 920, height: 635 },
-    5: { imageUrl: '/static/images/5.svg', width: 918, height: 636 }
+    1: { imageUrl: '/static/images/1.svg', width: 865, height: 860, defaultZoom: 1.4954560748550518, defaultCenter: [241.17471666211208, 455.7492807511971] },
+    2: { imageUrl: '/static/images/2.svg', width: 920, height: 639, defaultZoom: 1.498296103390921, defaultCenter: [222.64788599801707, 472.9055257445959] },
+    31: { imageUrl: '/static/images/2B.svg', width: 1036, height: 832 },
+    3: { imageUrl: '/static/images/3.svg', width: 920, height: 636, defaultZoom: 0, defaultCenter: [320, 460] },
+    21: { imageUrl: '/static/images/3B.svg', width: 869, height: 631 },
+    4: { imageUrl: '/static/images/4.svg', width: 920, height: 635, defaultZoom: 0, defaultCenter: [320, 460] },
+    5: { imageUrl: '/static/images/5.svg', width: 918, height: 636, defaultZoom: 0, defaultCenter: [320, 460] },
+    6: { imageUrl: '/static/images/6.svg', width: 894, height: 560, defaultZoom: 0, defaultCenter: [320, 460] }
 };
 
 // In L.CRS.Simple, bounds are [[y_min, x_min], [y_max, x_max]]
@@ -186,20 +189,70 @@ function getCSRFToken() {
         .find(row => row.startsWith('csrftoken='));
     return match ? match.split('=')[1] : null;
 }
-let connectionMode = false;
-let selectedConnections = [];
 
-// Toggle connection mode
+// =========================
+// CONNECTION MODES
+// =========================
+let connectionMode = false;
+let emergencyConnectionMode = false;
+let selectedConnections = [];
+let selectedEmergencyConnections = [];
+
+// Toggle normal connection mode
 document.getElementById("connectBtn").addEventListener("click", () => {
+    // Turn off emergency mode if active
+    if (emergencyConnectionMode) {
+        emergencyConnectionMode = false;
+        document.getElementById("emergencyConnectBtn").classList.remove('active');
+        resetMarkerVisuals();
+    }
+
     connectionMode = !connectionMode;
     selectedConnections = [];
 
-    alert(
-        connectionMode
-            ? "Connection mode enabled. Select 2 rooms."
-            : "Connection mode disabled."
-    );
+    if (connectionMode) {
+        document.getElementById("connectBtn").classList.add('active');
+        alert("🔗 Connection mode enabled. Select 2 rooms to connect.");
+    } else {
+        document.getElementById("connectBtn").classList.remove('active');
+        resetMarkerVisuals();
+    }
 });
+
+// Toggle emergency connection mode
+function toggleEmergencyConnectionMode() {
+    // Turn off normal mode if active
+    if (connectionMode) {
+        connectionMode = false;
+        document.getElementById("connectBtn").classList.remove('active');
+        resetMarkerVisuals();
+    }
+
+    emergencyConnectionMode = !emergencyConnectionMode;
+    selectedEmergencyConnections = [];
+
+    if (emergencyConnectionMode) {
+        document.getElementById("emergencyConnectBtn").classList.add('active');
+        alert("🚨 EMERGENCY Connection mode enabled. Select 2 rooms to mark as emergency exit path.");
+        document.body.style.cursor = 'crosshair';
+    } else {
+        document.getElementById("emergencyConnectBtn").classList.remove('active');
+        document.body.style.cursor = '';
+        resetMarkerVisuals();
+    }
+}
+
+// Reset marker visuals
+function resetMarkerVisuals() {
+    Object.values(floors).forEach(floor => {
+        floor.layer.eachLayer(layer => {
+            if (layer instanceof L.Marker) {
+                layer.setOpacity(1);
+            }
+        });
+    });
+}
+
 // =========================
 // ROOM MARKERS (VIEW ONLY)
 // =========================
@@ -210,78 +263,164 @@ locations.forEach((loc) => {
     ]);
 
     marker.bindPopup(loc.room_name);
-
     floors[loc.floor].layer.addLayer(marker);
 
     marker.on("click", function () {
-
         // =========================
-        // CONNECTION MODE CHECK
+        // NORMAL CONNECTION MODE
         // =========================
-        if (!connectionMode) return;
+        if (connectionMode) {
+            // prevent selecting same marker twice
+            if (selectedConnections.includes(loc)) return;
 
-        // prevent selecting same marker twice
-        if (selectedConnections.includes(loc)) return;
+            selectedConnections.push(loc);
+            marker.setOpacity(0.5);
 
-        selectedConnections.push(loc);
+            if (selectedConnections.length === 2) {
+                const from = selectedConnections[0];
+                const to = selectedConnections[1];
 
-        // visual feedback (selected state)
-        marker.setOpacity(0.5);
-
-        // =========================
-        // WHEN TWO NODES SELECTED
-        // =========================
-        if (selectedConnections.length === 2) {
-
-            const from = selectedConnections[0];
-            const to = selectedConnections[1];
-
-            fetch("/save-connection/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCSRFToken()
-                },
-                body: JSON.stringify({
-                    from_room: from.room_name,
-                    from_x: from.x_coordinate,
-                    from_y: from.y_coordinate,
-
-                    to_room: to.room_name,
-                    to_x: to.x_coordinate,
-                    to_y: to.y_coordinate,
-
-                    cost: 20.0
+                fetch("/save-connection/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCSRFToken()
+                    },
+                    body: JSON.stringify({
+                        from_room: from.room_name,
+                        from_x: from.x_coordinate,
+                        from_y: from.y_coordinate,
+                        from_floor: from.floor,
+                        to_room: to.room_name,
+                        to_x: to.x_coordinate,
+                        to_y: to.y_coordinate,
+                        to_floor: to.floor,
+                        cost: 20.0,
+                        is_emergency: false  // Normal connection
+                    })
                 })
-            })
-                .then(async (res) => {
-                    const data = await res.json();
+                    .then(async (res) => {
+                        const data = await res.json();
 
-                    if (!res.ok) {
-                        throw new Error(data.error || "Request failed");
-                    }
-
-                    alert("Connection saved!");
-                    console.log(data);
-
-                    // reset selection
-                    selectedConnections = [];
-                    connectionMode = false;
-
-                    // reset marker visuals
-                    floors[loc.floor].layer.eachLayer(layer => {
-                        if (layer instanceof L.Marker) {
-                            layer.setOpacity(1);
+                        if (!res.ok) {
+                            throw new Error(data.error || "Request failed");
                         }
+
+                        alert("✅ Connection saved!");
+                        console.log(data);
+
+                        // reset selection
+                        selectedConnections = [];
+                        connectionMode = false;
+                        document.getElementById("connectBtn").classList.remove('active');
+                        resetMarkerVisuals();
+                    })
+                    .catch(err => {
+                        console.error("Save failed:", err);
+                        alert("❌ Failed to save connection.");
                     });
+            }
+            return;
+        }
+
+        // =========================
+        // EMERGENCY CONNECTION MODE
+        // =========================
+        if (emergencyConnectionMode) {
+            // prevent selecting same marker twice
+            if (selectedEmergencyConnections.includes(loc)) return;
+
+            selectedEmergencyConnections.push(loc);
+            marker.setOpacity(0.5);
+
+            if (selectedEmergencyConnections.length === 2) {
+                const from = selectedEmergencyConnections[0];
+                const to = selectedEmergencyConnections[1];
+
+                fetch("/save-connection/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCSRFToken()
+                    },
+                    body: JSON.stringify({
+                        from_room: from.room_name,
+                        from_x: from.x_coordinate,
+                        from_y: from.y_coordinate,
+                        from_floor: from.floor,
+                        to_room: to.room_name,
+                        to_x: to.x_coordinate,
+                        to_y: to.y_coordinate,
+                        to_floor: to.floor,
+                        cost: 10.0,  // Lower cost for emergency paths
+                        is_emergency: true  // 🚨 AUTO TRUE FOR EMERGENCY
+                    })
                 })
-                .catch(err => {
-                    console.error("Save failed:", err);
-                    alert("Failed to save connection.");
-                });
+                    .then(async (res) => {
+                        const data = await res.json();
+
+                        if (!res.ok) {
+                            throw new Error(data.error || "Request failed");
+                        }
+
+                        alert("🚨 EMERGENCY connection saved!");
+                        console.log(data);
+
+                        // reset selection
+                        selectedEmergencyConnections = [];
+                        emergencyConnectionMode = false;
+                        document.getElementById("emergencyConnectBtn").classList.remove('active');
+                        document.body.style.cursor = '';
+                        resetMarkerVisuals();
+
+                        // Clear cache so emergency paths reload
+                        emergencyCache = null;
+                    })
+                    .catch(err => {
+                        console.error("Save failed:", err);
+                        alert("❌ Failed to save emergency connection.");
+                    });
+            }
+            return;
         }
     });
 });
+
+// =========================
+// ADD EMERGENCY CONNECT BUTTON
+// =========================
+
+// Add emergency connection button to the UI
+document.addEventListener("DOMContentLoaded", () => {
+    // Check if button already exists
+    if (!document.getElementById("emergencyConnectBtn")) {
+        const connectBtn = document.getElementById("connectBtn");
+        const emergencyBtn = document.createElement("button");
+        emergencyBtn.id = "emergencyConnectBtn";
+        emergencyBtn.textContent = "🚨 Emergency Connect";
+        emergencyBtn.className = "btn btn-danger";
+        emergencyBtn.style.marginLeft = "5px";
+        emergencyBtn.style.backgroundColor = "#dc3545";
+        emergencyBtn.style.color = "white";
+        emergencyBtn.style.border = "none";
+        emergencyBtn.style.padding = "5px 12px";
+        emergencyBtn.style.borderRadius = "4px";
+        emergencyBtn.style.cursor = "pointer";
+        emergencyBtn.style.fontWeight = "bold";
+
+        emergencyBtn.addEventListener("click", toggleEmergencyConnectionMode);
+
+        // Insert after connect button
+        if (connectBtn) {
+            connectBtn.parentNode.insertBefore(emergencyBtn, connectBtn.nextSibling);
+        } else {
+            // Fallback: add to a container
+            const container = document.querySelector(".control-panel") || document.body;
+            container.appendChild(emergencyBtn);
+        }
+    }
+});
+
 // =========================
 // FLOOR SWITCH
 // =========================
@@ -308,6 +447,14 @@ function switchFloor(floor) {
 
     // Clear copy/paste selection — it doesn't carry across floors
     deselectPolygon();
+
+    // Hide emergency paths if visible
+    if (map.hasLayer(emergencyLayer)) {
+        map.removeLayer(emergencyLayer);
+        clearPulseAnimations();
+        updateEmergencyButton(false);
+        emergencyCache = null; // Clear cache to force reload for new floor
+    }
 
     // Update current floor
     currentFloor = floor;
@@ -637,8 +784,7 @@ async function saveNodes() {
                 "X-CSRFToken": getCSRFToken()
             },
             body: JSON.stringify({
-                center_x: x_coordinate,
-                center_y: y_coordinate,
+                nodes: nodeData,
                 floor: currentFloor
             })
         });
@@ -1138,6 +1284,228 @@ document.addEventListener('keydown', function (e) {
         pasteCopiedPolygon();
     }
 });
+
+// =========================
+// EMERGENCY PATHS
+// =========================
+
+const emergencyLayer = L.layerGroup();
+let pulseTimers = [];
+let isLoadingEmergency = false;
+let emergencyCache = null;
+
+function startPulse(decorator) {
+    let opacity = 0.9;
+    let direction = -1;
+    const timer = setInterval(() => {
+        opacity += direction * 0.05;
+        if (opacity <= 0.3) direction = 1;
+        if (opacity >= 0.9) direction = -1;
+        decorator.setPatterns([{
+            offset: 0,
+            repeat: 20,
+            symbol: L.Symbol.arrowHead({
+                pixelSize: 10,
+                polygon: false,
+                pathOptions: { color: 'red', weight: 2, opacity }
+            })
+        }]);
+    }, 80);
+    pulseTimers.push(timer);
+}
+
+function clearPulseAnimations() {
+    pulseTimers.forEach(t => clearInterval(t));
+    pulseTimers = [];
+}
+
+async function toggleEmergencyPaths() {
+    if (map.hasLayer(emergencyLayer)) {
+        map.removeLayer(emergencyLayer);
+        clearPulseAnimations();
+        updateEmergencyButton(false);
+        return;
+    }
+
+    if (isLoadingEmergency) return;
+
+    try {
+        isLoadingEmergency = true;
+        updateEmergencyButton(true, 'loading');
+
+        if (!emergencyCache) {
+            const res = await fetch('/emergency-paths/');
+            if (!res.ok) throw new Error("Failed to load emergency paths");
+            emergencyCache = await res.json();
+        }
+
+        emergencyLayer.clearLayers();
+        clearPulseAnimations();
+
+        // Debug: Log what we got
+        console.log('Emergency paths data:', emergencyCache);
+        console.log('Current floor:', currentFloor);
+
+        // Handle both array and object formats
+        let paths = emergencyCache;
+
+        // If it's an object with floor keys (like {"1": [...], "2": [...]})
+        if (!Array.isArray(emergencyCache)) {
+            paths = emergencyCache[currentFloor] || [];
+        }
+
+        // Ensure we have an array to iterate
+        if (!Array.isArray(paths)) {
+            console.warn("No paths found for floor", currentFloor);
+            alert(`No emergency paths found for floor ${currentFloor}`);
+            emergencyLayer.addTo(map);
+            updateEmergencyButton(false);
+            return;
+        }
+
+        // Filter paths for current floor (if data has floor in coordinates)
+        let floorPaths = paths;
+        if (paths.length > 0 && paths[0].from && paths[0].from.length === 3) {
+            floorPaths = paths.filter(path => {
+                return String(path.from[2]) === String(currentFloor) &&
+                    String(path.to[2]) === String(currentFloor);
+            });
+        }
+
+        console.log(`Found ${floorPaths.length} emergency paths for floor ${currentFloor}`);
+
+        if (floorPaths.length === 0) {
+            alert(`No emergency paths found for floor ${currentFloor}`);
+            emergencyLayer.addTo(map);
+            updateEmergencyButton(false);
+            return;
+        }
+
+        // Add each path with pulsing arrows
+        floorPaths.forEach((path, index) => {
+            // Extract coordinates
+            let fromCoords, toCoords;
+
+            if (Array.isArray(path.from) && path.from.length >= 2) {
+                fromCoords = [path.from[0], path.from[1]];
+            } else if (path.from_lat !== undefined && path.from_lng !== undefined) {
+                fromCoords = [path.from_lat, path.from_lng];
+            } else {
+                console.warn('Invalid from coordinates:', path.from);
+                return;
+            }
+
+            if (Array.isArray(path.to) && path.to.length >= 2) {
+                toCoords = [path.to[0], path.to[1]];
+            } else if (path.to_lat !== undefined && path.to_lng !== undefined) {
+                toCoords = [path.to_lat, path.to_lng];
+            } else {
+                console.warn('Invalid to coordinates:', path.to);
+                return;
+            }
+
+            console.log(`Path ${index + 1}: From [${fromCoords}] to [${toCoords}]`);
+
+            // Create the decorated line
+            const decorator = L.polylineDecorator(
+                [fromCoords, toCoords],
+                {
+                    patterns: [{
+                        offset: 0,
+                        repeat: 20,
+                        symbol: L.Symbol.arrowHead({
+                            pixelSize: 10,
+                            polygon: false,
+                            pathOptions: {
+                                color: 'red',
+                                weight: 2,
+                                opacity: 0.9
+                            }
+                        })
+                    }]
+                }
+            ).addTo(emergencyLayer);
+
+            startPulse(decorator);
+        });
+
+        emergencyLayer.addTo(map);
+        updateEmergencyButton(true);
+        console.log(`✅ Added ${floorPaths.length} emergency paths to map`);
+
+    } catch (err) {
+        console.error("Emergency paths error:", err);
+        alert("Could not load emergency paths. Please try again.");
+        updateEmergencyButton(false);
+    } finally {
+        isLoadingEmergency = false;
+    }
+}
+
+function updateEmergencyButton(active, state = 'idle') {
+    const btn = document.getElementById('emergencyAllExitsBtn');
+    if (!btn) return;
+
+    if (state === 'loading') {
+        btn.textContent = '⏳ Loading...';
+        btn.disabled = true;
+        return;
+    }
+
+    btn.disabled = false;
+    if (active) {
+        btn.textContent = '🚨 Hide Emergency Exits';
+        btn.classList.add('active');
+        btn.style.backgroundColor = '#ff4444';
+        btn.style.color = 'white';
+    } else {
+        btn.textContent = '🚨 Show Emergency Exits';
+        btn.classList.remove('active');
+        btn.style.backgroundColor = '';
+        btn.style.color = '';
+    }
+}
+
+// Add emergency paths legend
+function addEmergencyLegend() {
+    const legend = L.control({ position: 'bottomright' });
+
+    legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'info legend emergency-legend');
+        div.style.backgroundColor = 'white';
+        div.style.padding = '8px 12px';
+        div.style.borderRadius = '4px';
+        div.style.boxShadow = '0 0 15px rgba(0,0,0,0.2)';
+        div.style.fontSize = '12px';
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        div.style.gap = '8px';
+
+        div.innerHTML = `
+            <span style="display:inline-block;width:20px;height:2px;background:red;position:relative;">
+                <span style="position:absolute;top:-4px;right:-6px;font-size:10px;color:red;">▶</span>
+            </span>
+            <span style="color:red;font-weight:bold;">Emergency Exit Path</span>
+        `;
+        return div;
+    };
+
+    legend.addTo(map);
+}
+
+// Call this when map is ready
+map.whenReady(() => {
+    addEmergencyLegend();
+});
+
+// Auto-trigger from URL parameter
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('emergency') === 'true') {
+    map.whenReady(() => {
+        setTimeout(toggleEmergencyPaths, 500);
+    });
+}
+
 // =========================
 // EXPOSE ADMIN FUNCTIONS GLOBALLY
 // =========================
@@ -1160,6 +1528,10 @@ window.deleteSelectedNode = deleteSelectedNode;
 window.exportNodes = exportNodes;
 window.importNodes = importNodes;
 
+// Emergency functions
+window.toggleEmergencyPaths = toggleEmergencyPaths;
+window.toggleEmergencyConnectionMode = toggleEmergencyConnectionMode;
+
 // Floor switch
 window.switchFloor = switchFloor;
 
@@ -1179,3 +1551,6 @@ console.log('  - clearAllNodes() - Clear all nodes');
 console.log('  - deleteSelectedNode() - Delete selected node');
 console.log('  - exportNodes() - Export nodes as JSON');
 console.log('  - importNodes() - Import nodes from JSON');
+console.log('📌 Emergency functions available:');
+console.log('  - toggleEmergencyPaths() - Show/hide emergency exit paths');
+console.log('  - toggleEmergencyConnectionMode() - Mark rooms as emergency exits');

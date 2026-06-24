@@ -122,4 +122,25 @@ document.addEventListener("DOMContentLoaded", () => {
             updateActiveFloor(e.detail.floor);
         }
     });
+    // only show 2B button when on floor 2
+    document.querySelectorAll('.floor-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const floor = parseInt(btn.dataset.floor);
+            switchFloor(floor);
+
+            // show 2B only when on floor 2 or 2B
+            const sectionBtn = document.querySelector('[data-floor="21"]');
+            if (sectionBtn) {
+                sectionBtn.style.display = [2, 21].includes(floor) ? 'flex' : 'none';
+            }
+        });
+    });
+
+    // hide 2B on initial load if not on floor 2
+    document.addEventListener('DOMContentLoaded', () => {
+        const sectionBtn = document.querySelector('[data-floor="21"]');
+        if (sectionBtn && ![2, 21].includes(currentFloor)) {
+            sectionBtn.style.display = 'none';
+        }
+    });
 });
