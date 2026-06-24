@@ -1,4 +1,4 @@
-const CACHE_VERSION = "webmap-pwa-v5";
+const CACHE_VERSION = "webmap-pwa-v6";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const OFFLINE_URL = "/offline/";
@@ -38,6 +38,7 @@ const CDN_ASSETS = [
     "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js",
     "https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.min.js",
     "https://unpkg.com/@elfalem/leaflet-curve",
+    "https://cdn.jsdelivr.net/npm/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.min.js"
 ];
 
 const API_CACHE_PREFIXES = [
