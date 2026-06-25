@@ -13,6 +13,7 @@ from .serializers import LocationSerializer, ConnectionSerializer, AnnouncementS
 from django.contrib.auth.decorators import login_required, user_passes_test
 from rest_framework.permissions import IsAdminUser
 from django.core.cache import cache
+from django_ratelimit.decorators import ratelimit   
 
 # ─── CACHE TTLs ───────────────────────────────────────────────────────────────
 CACHE_TTL = {
@@ -243,7 +244,7 @@ def locate(request):
 
     return redirect(f"{base_url}{query_string}")
 
-
+@ratelimit(key='ip', rate='60/m', block=True)
 def pathfind(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST request required"}, status=400)
