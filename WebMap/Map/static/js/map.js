@@ -594,12 +594,17 @@ async function toggleEmergencyPaths() {
 
         // ✅ cache — only fetches once per page session
         if (!emergencyCache) {
-            const res = await fetch('emergency-paths/');
-            if (!res.ok) throw new Error(`Failed to load emergency paths: ${res.status}`);
-            emergencyCache = await res.json();
-            console.log(`Emergency cache loaded: ${emergencyCache.length} total paths`);
-        }
+            const res = await fetch('/map/emergency-paths/');
+            if (!res.ok) {
+                throw new Error(`Failed to load emergency paths (${res.status})`);
+            }
 
+            emergencyCache = await res.json();
+
+            console.log(
+                `Loaded ${emergencyCache.length} emergency segments`
+            );
+        }
         emergencyLayer.clearLayers();
         clearPulseAnimations();
 

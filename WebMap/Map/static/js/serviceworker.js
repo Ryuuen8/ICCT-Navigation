@@ -1,4 +1,4 @@
-const CACHE_VERSION = "webmap-pwa-v11";
+const CACHE_VERSION = "webmap-pwa-v12";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const OFFLINE_URL = "/offline/";
@@ -51,7 +51,6 @@ const API_NO_CACHE = [
     "/save-connection/",
     "/report/",
     "/locate/",
-    'map/emergency-paths/',
 ];
 
 const CDN_HOSTS = [
@@ -193,18 +192,26 @@ self.addEventListener("message", (event) => {
         const urlsToCache = [
             "/api/locations/",
             "/api/connections/",
-            "/emergency-paths/",
+            "/map/emergency-paths/",
         ];
+
         caches.open(DYNAMIC_CACHE).then((cache) => {
             Promise.allSettled(
-                urlsToCache.map((url) =>
-                    cache.match(url).then((cached) => {
-                        if (cached) return; // skip if already cached
-                        return fetch(url).then((res) => {
-                            if (res.ok) cache.put(url, res.clone());
-                        });
-                    }).catch(() => { })
-                )
+                urlsToCache.map(async (url) => {
+                    try {
+                        const cached = await cache.match(url);
+                        if (cached) return;
+
+                        const res = await fetch(url);
+
+                        if (res.ok) {
+                            await cache.put(url, res.clone());
+                            console.log("Cached:", url);
+                        }
+                    } catch (err) {
+                        console.warn("Failed caching:", url, err);
+                    }
+                })
             );
         });
     }
@@ -243,6 +250,41 @@ self.addEventListener("fetch", (event) => {
                 offlineFallback("You are offline. This action requires an internet connection.")
             )
         );
+        return;
+    }
+    // Emergency paths (Network First -> Cache Fallback)
+    if (url.pathname === "/emergency-paths/") {
+        event.respondWith(
+            caches.open(DYNAMIC_CACHE).then(async (cache) => {
+                try {
+                    const response = await fetch(request);
+
+                    if (response.ok) {
+                        cache.put(request, response.clone());
+                    }
+
+                    return response;
+
+                } catch (err) {
+
+                    const cached = await cache.match(request);
+
+                    if (cached) {
+                        console.log("Serving cached emergency paths");
+                        return cached;
+                    }
+
+                    console.warn("No cached emergency paths");
+
+                    return new Response("[]", {
+                        headers: {
+                            "Content-Type": "application/json"
+                        }
+                    });
+                }
+            })
+        );
+
         return;
     }
 
