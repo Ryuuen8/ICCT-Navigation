@@ -15,13 +15,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from rest_framework.permissions import IsAdminUser
 from django.core.cache import cache
 
-CACHE_TTL = {
-    'locations':       3600 * 24,   # 24h — rarely changes
-    'connections':     3600 * 24,   # 24h — rarely changes
-    'emergency_paths': 3600 * 6,    # 6h — might update
-    'announcements':   3600 * 1,    # 1h — changes often
-    'floormap':        3600 * 24,   # 24h — static
-}
+
 
 def staff_check(user):
     return user.is_staff
