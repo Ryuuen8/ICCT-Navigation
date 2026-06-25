@@ -22,7 +22,7 @@ const PENDING_DESTINATION_KEY = 'pendingNavigationDestination';
 
 // ─── FLOOR PLANS ──────────────────────────────────────────────────────────────
 const floorPlans = {
-    1: { imageUrl: '/static/images/1t.webp', width: 865, height: 860, defaultZoom: 1.4954560748550518, defaultCenter: [241.17471666211208, 455.7492807511971] },
+    1: { imageUrl: '/static/images/1.svg', width: 865, height: 860, defaultZoom: 1.4954560748550518, defaultCenter: [241.17471666211208, 455.7492807511971] },
     2: { imageUrl: '/static/images/2.svg', width: 920, height: 639, defaultZoom: 1.498296103390921, defaultCenter: [222.64788599801707, 472.9055257445959] },
     21: { imageUrl: '/static/images/3b.svg', width: 869, height: 631 },
     31: { imageUrl: '/static/images/2B.svg', width: 1036, height: 832 },
