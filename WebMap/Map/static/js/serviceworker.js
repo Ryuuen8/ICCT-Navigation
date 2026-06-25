@@ -51,6 +51,7 @@ const API_NO_CACHE = [
     "/save-connection/",
     "/report/",
     "/locate/",
+    'map/emergency-paths/',
 ];
 
 const CDN_HOSTS = [
@@ -222,6 +223,8 @@ self.addEventListener("message", (event) => {
     }
 });
 
+
+
 // ─── FETCH ────────────────────────────────────────────────────────────────────
 self.addEventListener("fetch", (event) => {
     const { request } = event;
@@ -271,4 +274,4 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
         fetch(request).catch(() => caches.match(request))
     );
-});
+}); 
