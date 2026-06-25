@@ -1,4 +1,4 @@
-const CACHE_VERSION = "webmap-pwa-v12"; // ✅ Incremented version
+const CACHE_VERSION = "webmap-pwa-v11";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const OFFLINE_URL = "/offline/";
@@ -34,21 +34,16 @@ const APP_STATIC = [
     "/static/images/6.svg",
 ];
 
-// ✅ UPDATED: Using new CDN URLs (single source)
 const CDN_ASSETS = [
-    // Leaflet - single CDN (cdnjs)
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css",
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js",
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet-ant-path/1.3.0/leaflet-ant-path.min.js",
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet-curve/0.1.0/leaflet-curve.min.js",
+    "https://unpkg.com/leaflet@1.6.0/dist/leaflet.css",
+    "https://unpkg.com/leaflet@1.6.0/dist/leaflet.js",
+    "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js",
+    "https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.min.js",
+    "https://unpkg.com/@elfalem/leaflet-curve",
     "https://cdn.jsdelivr.net/npm/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.min.js",
-    // Font Awesome
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css",
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/webfonts/fa-solid-900.woff2",
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/webfonts/fa-regular-400.woff2",
-    // Barcode scanner (deferred, but cache for offline)
-    "https://cdn.jsdelivr.net/npm/dynamsoft-barcode-reader-bundle@11.2.4000/dist/dbr.bundle.js",
-    "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js",
 ];
 
 const API_NO_CACHE = [
@@ -57,16 +52,6 @@ const API_NO_CACHE = [
     "/save-connection/",
     "/report/",
     "/locate/",
-];
-
-// ✅ NEW: Emergency paths endpoint
-const EMERGENCY_ENDPOINT = "/emergency-paths/";
-
-// ✅ NEW: API endpoints that should be cached for offline
-const API_CACHE = [
-    "/api/locations/",
-    "/api/connections/",
-    EMERGENCY_ENDPOINT,
 ];
 
 const CDN_HOSTS = [
@@ -91,10 +76,6 @@ function isFloorImage(url) {
 
 function isNoCacheApi(url) {
     return API_NO_CACHE.some((prefix) => url.pathname.startsWith(prefix));
-}
-
-function isCachedApi(url) {
-    return API_CACHE.some((prefix) => url.pathname.startsWith(prefix));
 }
 
 function isCdnRequest(url) {
@@ -166,9 +147,11 @@ function offlineFallback(message) {
     );
 }
 
-// ─── INSTALL ──────────────────────────────────────────────────────────────────
+// ─── INSTALL — defer heavy caching so it doesn't block page load ──────────────
 self.addEventListener("install", (event) => {
     event.waitUntil(
+        // ✅ only cache critical static assets on install
+        // CDN assets cached lazily on first use via staleWhileRevalidate
         caches.open(STATIC_CACHE)
             .then((cache) => cache.addAll([...APP_PAGES, ...APP_STATIC].filter(Boolean)))
             .then(() => self.skipWaiting())
@@ -196,11 +179,17 @@ self.addEventListener("message", (event) => {
         self.skipWaiting();
     }
 
-    // ✅ Pre-cache map data (locations, connections, emergency paths)
+    // ✅ lazily pre-cache map data AFTER page is fully loaded
+    // called from map.js only when page is idle
     if (event.data?.type === "CACHE_MAP_DATA") {
+        const urlsToCache = [
+            "/api/locations/",
+            "/api/connections/",
+            "/emergency-paths/",
+        ];
         caches.open(DYNAMIC_CACHE).then((cache) => {
             Promise.allSettled(
-                API_CACHE.map((url) =>
+                urlsToCache.map((url) =>
                     cache.match(url).then((cached) => {
                         if (cached) return; // skip if already cached
                         return fetch(url).then((res) => {
@@ -209,17 +198,6 @@ self.addEventListener("message", (event) => {
                     }).catch(() => { })
                 )
             );
-        });
-    }
-
-    // ✅ Force cache emergency paths specifically
-    if (event.data?.type === "CACHE_EMERGENCY_PATHS") {
-        caches.open(DYNAMIC_CACHE).then((cache) => {
-            fetch(EMERGENCY_ENDPOINT)
-                .then((res) => {
-                    if (res.ok) cache.put(EMERGENCY_ENDPOINT, res.clone());
-                })
-                .catch(() => { });
         });
     }
 
@@ -232,7 +210,7 @@ self.addEventListener("message", (event) => {
 
     if (event.data?.type === "CLEAR_EMERGENCY_CACHE") {
         caches.open(DYNAMIC_CACHE).then((cache) => {
-            cache.delete(EMERGENCY_ENDPOINT);
+            cache.delete("/emergency-paths/");
         });
     }
 });
@@ -254,50 +232,6 @@ self.addEventListener("fetch", (event) => {
             fetch(request).catch(() =>
                 offlineFallback("You are offline. This action requires an internet connection.")
             )
-        );
-        return;
-    }
-
-    // ── ✅ NEW: Emergency paths — network first, fallback to cache ──────────
-    if (url.pathname === EMERGENCY_ENDPOINT) {
-        event.respondWith(
-            fetch(request)
-                .then((response) => {
-                    if (response.ok) {
-                        caches.open(DYNAMIC_CACHE).then((cache) => {
-                            cache.put(request, response.clone());
-                        });
-                    }
-                    return response;
-                })
-                .catch(() => {
-                    return caches.match(request).then((cached) => {
-                        if (cached) return cached;
-                        return offlineFallback("Emergency paths not available offline");
-                    });
-                })
-        );
-        return;
-    }
-
-    // ── ✅ NEW: API endpoints that should be cached ──────────────────────────
-    if (isCachedApi(url)) {
-        event.respondWith(
-            fetch(request)
-                .then((response) => {
-                    if (response.ok) {
-                        caches.open(DYNAMIC_CACHE).then((cache) => {
-                            cache.put(request, response.clone());
-                        });
-                    }
-                    return response;
-                })
-                .catch(() => {
-                    return caches.match(request).then((cached) => {
-                        if (cached) return cached;
-                        return offlineFallback("Data not available offline");
-                    });
-                })
         );
         return;
     }
