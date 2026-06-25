@@ -31,6 +31,8 @@ const APP_STATIC = [
     "/static/images/3.svg",
     "/static/images/4.svg",
     "/static/images/5.svg",
+    '/static/images/3B.svg',
+    '/static/images/2B.svg',
 ];
 
 const CDN_ASSETS = [

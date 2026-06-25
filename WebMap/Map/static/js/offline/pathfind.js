@@ -1,318 +1,231 @@
+window.OfflinePathfinder = (function () {
 
-/**
- * Client-side pathfinding — mirrors server logic in Map/views.py pathfind().
- */
-(function (global) {
-    const STAIR_ENTRANCE = "entrance";
-    const STAIR_EXIT = "exit";
-    const BLOCKED_ROOMS = new Set(["Library"]);
+    function loadGraphFromPage() {
+        try {
+            const locationsEl = document.getElementById('locations-data');
+            const connectionsEl = document.getElementById('connections-data');
+            if (!locationsEl || !connectionsEl) return null;
 
-    class MinHeap {
-        constructor(compare) {
-            this.items = [];
-            this.compare = compare;
-        }
+            const locations = JSON.parse(locationsEl.textContent);
+            const connections = JSON.parse(connectionsEl.textContent);
 
-        push(value) {
-            this.items.push(value);
-            this._bubbleUp(this.items.length - 1);
-        }
+            if (!locations?.length || !connections?.length) return null;
 
-        pop() {
-            if (this.items.length === 1) {
-                return this.items.pop();
-            }
-
-            const top = this.items[0];
-            this.items[0] = this.items.pop();
-            this._sinkDown(0);
-            return top;
-        }
-
-        isEmpty() {
-            return this.items.length === 0;
-        }
-
-        _bubbleUp(index) {
-            while (index > 0) {
-                const parent = Math.floor((index - 1) / 2);
-                if (this.compare(this.items[index], this.items[parent]) >= 0) {
-                    break;
-                }
-                [this.items[index], this.items[parent]] = [this.items[parent], this.items[index]];
-                index = parent;
-            }
-        }
-
-        _sinkDown(index) {
-            const length = this.items.length;
-
-            while (true) {
-                const left = index * 2 + 1;
-                const right = left + 1;
-                let smallest = index;
-
-                if (left < length && this.compare(this.items[left], this.items[smallest]) < 0) {
-                    smallest = left;
-                }
-                if (right < length && this.compare(this.items[right], this.items[smallest]) < 0) {
-                    smallest = right;
-                }
-                if (smallest === index) {
-                    break;
-                }
-
-                [this.items[index], this.items[smallest]] = [this.items[smallest], this.items[index]];
-                index = smallest;
-            }
-        }
-    }
-
-    function getFloor(loc) {
-        return loc.floor_location ?? loc.floor;
-    }
-
-    function inferStairType(loc, stairThreshold) {
-        if (loc.stair_type) {
-            return loc.stair_type;
-        }
-
-        if (!loc.room_name.toLowerCase().includes("stair")) {
+            return { locations, connections };
+        } catch (e) {
+            console.error('OfflinePathfinder: failed to load graph', e);
             return null;
         }
-
-        return loc.x_coordinate > stairThreshold ? STAIR_ENTRANCE : STAIR_EXIT;
     }
 
-    function buildNodes(locations) {
+    function findPath(locations, connections, startName, endName, isEmergency = false) {
+
+        // ─── BUILD NODES ──────────────────────────────────────────────────────
+        const nodes = {};
+
         const stairX = locations
-            .filter((loc) => loc.room_name.toLowerCase().includes("stair"))
-            .map((loc) => loc.x_coordinate);
+            .filter(loc => loc.room_name.toLowerCase().includes('stair'))
+            .map(loc => loc.x_coordinate);
+
         const stairThreshold = stairX.length
             ? (Math.min(...stairX) + Math.max(...stairX)) / 2
             : 0;
 
-        const nodes = new Map();
+        const emergencyRooms = new Set(
+            locations
+                .filter(loc => loc.room_name.toLowerCase().includes('emergency node'))
+                .map(loc => loc.room_name)
+        );
 
-        for (const loc of locations) {
-            nodes.set(loc.room_name, {
-                pos: [loc.x_coordinate, loc.y_coordinate, getFloor(loc)],
-                stair_type: inferStairType(loc, stairThreshold),
-            });
+        const bridgeRooms = new Set(
+            locations
+                .filter(loc => loc.room_name.toLowerCase().includes('bridge node'))
+                .map(loc => loc.room_name)
+        );
+
+        locations.forEach(loc => {
+            let stairType = loc.stair_type || null;
+
+            if (!stairType && loc.room_name.toLowerCase().includes('stair')) {
+                stairType = loc.x_coordinate > stairThreshold ? 'entrance' : 'exit';
+            }
+
+            nodes[loc.room_name] = {
+                x: loc.x_coordinate,
+                y: loc.y_coordinate,
+                floor: loc.floor_location,
+                stair_type: stairType
+            };
+        });
+
+        if (!nodes[startName]) {
+            return { error: `Start room '${startName}' not found` };
+        }
+        if (!nodes[endName]) {
+            return { error: `Destination room '${endName}' not found` };
         }
 
-        return nodes;
-    }
+        // ─── BUILD EDGES ──────────────────────────────────────────────────────
+        const adj = {}; // adjacency list: adj[room] = [{to, cost, floorDiff}]
 
-    function buildEdges(connections) {
-        const edges = [];
+        Object.keys(nodes).forEach(name => { adj[name] = []; });
 
-        for (const conn of connections) {
-            const from = conn.from ?? conn.from_room ?? conn.from_location_name;
-            const to = conn.to ?? conn.to_room ?? conn.to_location_name;
-            const fromFloor = conn.from_floor ?? conn.from_location?.floor_location;
-            const toFloor = conn.to_floor ?? conn.to_location?.floor_location;
+        connections.forEach(conn => {
+            const from = conn.from;
+            const to = conn.to;
 
-            edges.push({
-                from,
-                to,
-                weight: conn.cost,
-                floor_diff: toFloor - fromFloor,
-            });
-            edges.push({
-                from: to,
-                to: from,
-                weight: conn.cost,
-                floor_diff: fromFloor - toFloor,
-            });
+            if (!nodes[from] || !nodes[to]) return;
+
+            // ✅ skip emergency-only connections when not in emergency mode
+            if (conn.is_emergency && !isEmergency) return;
+
+            const fromFloor = conn.from_floor ?? nodes[from].floor;
+            const toFloor = conn.to_floor ?? nodes[to].floor;
+            const floorDiff = toFloor - fromFloor;
+
+            adj[from].push({ to, cost: conn.cost, floorDiff });
+            adj[to].push({ to: from, cost: conn.cost, floorDiff: -floorDiff });
+        });
+
+        // ─── FLOOR DIRECTION ──────────────────────────────────────────────────
+        const startFloor = nodes[startName].floor;
+        const endFloor = nodes[endName].floor;
+        const sameFloor = startFloor === endFloor;
+        const allowedDirection = sameFloor
+            ? null
+            : startFloor < endFloor ? 'up' : 'down';
+
+        const blockedRooms = new Set(['Library']);
+        const allowedEndpoints = new Set([startName, endName]);
+
+        // ─── A* ───────────────────────────────────────────────────────────────
+        const INFINITY = Infinity;
+        const gScore = {};
+        const fScore = {};
+        const cameFrom = {};
+        const openSet = new Set();
+
+        Object.keys(nodes).forEach(name => {
+            gScore[name] = INFINITY;
+            fScore[name] = INFINITY;
+        });
+
+        gScore[startName] = 0;
+        fScore[startName] = heuristic(startName, endName, nodes);
+        openSet.add(startName);
+
+        function heuristic(a, b, nodeMap) {
+            const na = nodeMap[a];
+            const nb = nodeMap[b];
+            const floorPenalty = Math.abs(na.floor - nb.floor) * 100;
+            return Math.hypot(na.x - nb.x, na.y - nb.y) + floorPenalty;
         }
 
-        return edges;
-    }
-
-    function buildFilteredAdjacency(nodes, edges, start, end, allowedDirection) {
-        const adjacency = new Map();
-
-        for (const edge of edges) {
-            const { from, to, weight, floor_diff: floorDiff } = edge;
-
-            if (!nodes.has(from) || !nodes.has(to)) {
-                continue;
-            }
-
-            if (BLOCKED_ROOMS.has(from) && from !== start && from !== end) {
-                continue;
-            }
-            if (BLOCKED_ROOMS.has(to) && to !== start && to !== end) {
-                continue;
-            }
-
-            const uType = nodes.get(from).stair_type;
-            const vType = nodes.get(to).stair_type;
-
-            if (allowedDirection === "up") {
-                if (floorDiff !== 0 && (uType === STAIR_EXIT || vType === STAIR_EXIT)) {
-                    continue;
-                }
-            } else if (allowedDirection === "down") {
-                if (floorDiff !== 0 && (uType === STAIR_ENTRANCE || vType === STAIR_ENTRANCE)) {
-                    continue;
+        function getLowestF() {
+            let lowest = null;
+            let lowestScore = INFINITY;
+            for (const name of openSet) {
+                if (fScore[name] < lowestScore) {
+                    lowestScore = fScore[name];
+                    lowest = name;
                 }
             }
-
-            let allowed = false;
-            if (floorDiff === 0 || allowedDirection === null) {
-                allowed = true;
-            } else if (allowedDirection === "up" && floorDiff > 0) {
-                allowed = true;
-            } else if (allowedDirection === "down" && floorDiff < 0) {
-                allowed = true;
-            }
-
-            if (!allowed) {
-                continue;
-            }
-
-            if (!adjacency.has(from)) {
-                adjacency.set(from, []);
-            }
-            adjacency.get(from).push({ to, weight });
+            return lowest;
         }
 
-        return adjacency;
-    }
+        while (openSet.size > 0) {
+            const current = getLowestF();
+            if (current === endName) break;
 
-    function heuristic(nodes, a, b) {
-        const [ax, ay] = nodes.get(a).pos;
-        const [bx, by] = nodes.get(b).pos;
-        return Math.hypot(ax - bx, ay - by);
-    }
+            openSet.delete(current);
 
-    function astar(nodes, adjacency, start, end) {
-        const open = new MinHeap((a, b) => a.f - b.f);
-        const gScore = new Map([[start, 0]]);
-        const cameFrom = new Map();
-        const closed = new Set();
+            for (const edge of (adj[current] || [])) {
+                const { to: neighbor, cost, floorDiff } = edge;
 
-        open.push({ node: start, f: heuristic(nodes, start, end) });
+                // ─── same rules as backend filter ───────────────────────────
 
-        while (!open.isEmpty()) {
-            const current = open.pop().node;
+                if (sameFloor && floorDiff !== 0) continue;
 
-            if (current === end) {
-                const path = [end];
-                while (cameFrom.has(path[path.length - 1])) {
-                    path.push(cameFrom.get(path[path.length - 1]));
-                }
-                return path.reverse();
-            }
+                if (blockedRooms.has(current) && !allowedEndpoints.has(current)) continue;
+                if (blockedRooms.has(neighbor) && !allowedEndpoints.has(neighbor)) continue;
 
-            if (closed.has(current)) {
-                continue;
-            }
-            closed.add(current);
-
-            for (const edge of adjacency.get(current) || []) {
-                const tentative = gScore.get(current) + edge.weight;
-
-                if (tentative >= (gScore.get(edge.to) ?? Infinity)) {
-                    continue;
+                if (!isEmergency) {
+                    if (emergencyRooms.has(current) && !allowedEndpoints.has(current)) continue;
+                    if (emergencyRooms.has(neighbor) && !allowedEndpoints.has(neighbor)) continue;
                 }
 
-                cameFrom.set(edge.to, current);
-                gScore.set(edge.to, tentative);
-                open.push({
-                    node: edge.to,
-                    f: tentative + heuristic(nodes, edge.to, end),
-                });
+                const uType = nodes[current]?.stair_type;
+                const vType = nodes[neighbor]?.stair_type;
+
+                if (allowedDirection === 'up') {
+                    if (floorDiff !== 0 && (uType === 'exit' || vType === 'exit')) continue;
+                } else if (allowedDirection === 'down') {
+                    if (floorDiff !== 0 && (uType === 'entrance' || vType === 'entrance')) continue;
+                }
+
+                // ────────────────────────────────────────────────────────────
+
+                const tentativeG = gScore[current] + cost;
+
+                if (tentativeG < gScore[neighbor]) {
+                    cameFrom[neighbor] = current;
+                    gScore[neighbor] = tentativeG;
+                    fScore[neighbor] = tentativeG + heuristic(neighbor, endName, nodes);
+                    openSet.add(neighbor);
+                }
             }
         }
 
-        return null;
-    }
+        if (gScore[endName] === INFINITY) {
+            return { error: 'No path found' };
+        }
 
-    function buildSegments(path, nodes) {
+        // ─── RECONSTRUCT PATH ─────────────────────────────────────────────────
+        const path = [];
+        let current = endName;
+        while (current !== undefined) {
+            path.unshift(current);
+            current = cameFrom[current];
+        }
+
+        // ─── BUILD COORDS + SEGMENTS ──────────────────────────────────────────
         const fullCoords = [];
         const segments = [];
-        let currentFloor = null;
-        let currentSegment = [];
+        let segFloor = null;
+        let segCoords = [];
 
-        for (const node of path) {
-            const [x, y, floor] = nodes.get(node).pos;
-            fullCoords.push([y, x, floor]);
+        path.forEach(name => {
+            const node = nodes[name];
+            fullCoords.push([node.y, node.x, node.floor]);
 
-            if (currentFloor === null) {
-                currentFloor = floor;
-                currentSegment = [[y, x]];
-                continue;
+            if (segFloor === null) {
+                segFloor = node.floor;
+                segCoords = [[node.y, node.x]];
+                return;
             }
 
-            if (floor !== currentFloor) {
-                if (currentSegment.length >= 2) {
-                    segments.push({ floor: currentFloor, coords: currentSegment });
+            if (node.floor !== segFloor) {
+                if (segCoords.length >= 2) {
+                    segments.push({ floor: segFloor, coords: segCoords });
                 }
-                currentFloor = floor;
-                currentSegment = [[y, x]];
+                segFloor = node.floor;
+                segCoords = [[node.y, node.x]];
             } else {
-                currentSegment.push([y, x]);
+                segCoords.push([node.y, node.x]);
             }
-        }
+        });
 
-        if (currentSegment.length >= 2) {
-            segments.push({ floor: currentFloor, coords: currentSegment });
-        }
-
-        return { path: fullCoords, segments };
-    }
-
-    function findPath(locations, connections, start, end) {
-        if (!start || !end) {
-            return { error: "Missing start or end room" };
-        }
-
-        const nodes = buildNodes(locations);
-        const edges = buildEdges(connections);
-
-        if (!nodes.has(start) || !nodes.has(end)) {
-            return { error: "Unknown start or end room" };
-        }
-
-        const startFloor = nodes.get(start).pos[2];
-        const endFloor = nodes.get(end).pos[2];
-        let allowedDirection = null;
-
-        if (startFloor < endFloor) {
-            allowedDirection = "up";
-        } else if (startFloor > endFloor) {
-            allowedDirection = "down";
-        }
-
-        const adjacency = buildFilteredAdjacency(nodes, edges, start, end, allowedDirection);
-        const path = astar(nodes, adjacency, start, end);
-
-        if (!path) {
-            return { error: "No path found" };
-        }
-
-        return buildSegments(path, nodes);
-    }
-
-    function loadGraphFromPage() {
-        const locationsElem = document.getElementById("locations-data");
-        const connectionsElem = document.getElementById("connections-data");
-
-        if (!locationsElem || !connectionsElem) {
-            return null;
+        if (segCoords.length >= 2) {
+            segments.push({ floor: segFloor, coords: segCoords });
         }
 
         return {
-            locations: JSON.parse(locationsElem.textContent),
-            connections: JSON.parse(connectionsElem.textContent),
+            path: fullCoords,
+            segments,
+            destination: endName
         };
     }
 
-    global.OfflinePathfinder = {
-        findPath,
-        loadGraphFromPage,
-    };
-})(window);
+    return { loadGraphFromPage, findPath };
+
+})();
