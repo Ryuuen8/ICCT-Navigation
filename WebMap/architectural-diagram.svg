@@ -1,0 +1,235 @@
+
+<svg width="1600" height="1100"
+     xmlns="http://www.w3.org/2000/svg">
+
+<style>
+.title{font:700 32px Arial;}
+.subtitle{font:700 22px Arial;}
+.layerTitle{font:700 22px Arial; fill:white;}
+.header{font:700 16px Arial;}
+.body{font:14px Arial;}
+.box{
+stroke:#333;
+stroke-width:2;
+rx:10;
+}
+</style>
+
+<!-- TITLE -->
+
+<text x="800" y="50"
+      text-anchor="middle"
+      class="title">
+ARCHITECTURE DIAGRAM
+</text>
+
+<text x="800" y="90"
+      text-anchor="middle"
+      class="subtitle">
+Offline QR-Anchored Web-Based Navigation and Emergency Evacuation System
+</text>
+
+<!-- USER LAYER -->
+
+<rect x="40" y="130" width="1520" height="110"
+      fill="#2563eb" class="box"/>
+
+<text x="80" y="190"
+      class="layerTitle">
+USER LAYER
+</text>
+
+<rect x="260" y="150" width="1180" height="70"
+      fill="white"
+      class="box"/>
+
+<text x="320" y="190" class="header">
+Students | Faculty | Staff | Visitors
+</text>
+
+<text x="900" y="190" class="header">
+Mobile Device / Browser (PWA)
+</text>
+
+<!-- ARROW -->
+
+<line x1="800" y1="240"
+      x2="800" y2="290"
+      stroke="#000"
+      stroke-width="3"/>
+
+<polygon points="800,300 790,285 810,285"
+         fill="#000"/>
+
+<!-- PRESENTATION LAYER -->
+
+<rect x="40" y="310" width="1520" height="180"
+      fill="#16a34a" class="box"/>
+
+<text x="70" y="350"
+      class="layerTitle">
+PRESENTATION LAYER
+</text>
+
+<!-- MODULES -->
+
+<rect x="220" y="340" width="250" height="110"
+      fill="white" class="box"/>
+<text x="285" y="370" class="header">QR Scanner</text>
+<text x="245" y="400" class="body">• Scan QR Code</text>
+<text x="245" y="425" class="body">• Decode Anchor</text>
+
+<rect x="500" y="340" width="250" height="110"
+      fill="white" class="box"/>
+<text x="560" y="370" class="header">Indoor Map</text>
+<text x="520" y="400" class="body">• Floor Selection</text>
+<text x="520" y="425" class="body">• Route Display</text>
+
+<rect x="780" y="340" width="250" height="110"
+      fill="white" class="box"/>
+<text x="815" y="370" class="header">Destination Search</text>
+<text x="800" y="400" class="body">• Search Room</text>
+<text x="800" y="425" class="body">• Select Destination</text>
+
+<rect x="1060" y="340" width="280" height="110"
+      fill="white" class="box"/>
+<text x="1100" y="370" class="header">
+Emergency Evacuation
+</text>
+<text x="1090" y="400" class="body">
+• Show Exit Routes
+</text>
+
+<!-- APPLICATION -->
+
+<line x1="800" y1="490"
+      x2="800" y2="530"
+      stroke="#000"
+      stroke-width="3"/>
+
+<polygon points="800,540 790,525 810,525"
+         fill="#000"/>
+
+<rect x="40" y="550" width="1520" height="220"
+      fill="#f59e0b"
+      class="box"/>
+
+<text x="70" y="590"
+      class="layerTitle">
+APPLICATION LAYER
+</text>
+
+<rect x="180" y="610" width="280" height="120"
+      fill="white" class="box"/>
+
+<text x="240" y="645" class="header">
+QR Processing Module
+</text>
+
+<text x="205" y="680" class="body">
+• Decode QR Anchor
+</text>
+
+<text x="205" y="705" class="body">
+• Identify Node ID
+</text>
+
+<rect x="500" y="610" width="280" height="120"
+      fill="white" class="box"/>
+
+<text x="555" y="645" class="header">
+Route Computation
+</text>
+
+<text x="525" y="680" class="body">
+• Dijkstra Algorithm
+</text>
+
+<text x="525" y="705" class="body">
+• Shortest Path Search
+</text>
+
+<rect x="820" y="610" width="280" height="120"
+      fill="white" class="box"/>
+
+<text x="890" y="645" class="header">
+Map Renderer
+</text>
+
+<text x="850" y="680" class="body">
+• Draw Routes
+</text>
+
+<text x="850" y="705" class="body">
+• Render Floor Plans
+</text>
+
+<rect x="1140" y="610" width="280" height="120"
+      fill="white" class="box"/>
+
+<text x="1190" y="645" class="header">
+Evacuation Engine
+</text>
+
+<text x="1170" y="680" class="body">
+• Nearest Exit Search
+</text>
+
+<text x="1170" y="705" class="body">
+• Evacuation Route
+</text>
+
+<!-- DATA LAYER -->
+
+<line x1="800" y1="770"
+      x2="800" y2="820"
+      stroke="#000"
+      stroke-width="3"/>
+
+<polygon points="800,830 790,815 810,815"
+         fill="#000"/>
+
+<rect x="40" y="840"
+      width="1520"
+      height="190"
+      fill="#7c3aed"
+      class="box"/>
+
+<text x="70"
+      y="880"
+      class="layerTitle">
+DATA LAYER
+</text>
+
+<rect x="180" y="900" width="240" height="90"
+      fill="white" class="box"/>
+<text x="220" y="945" class="header">
+QR Anchor Database
+</text>
+
+<rect x="460" y="900" width="240" height="90"
+      fill="white" class="box"/>
+<text x="510" y="945" class="header">
+Navigation Graph
+</text>
+
+<rect x="740" y="900" width="240" height="90"
+      fill="white" class="box"/>
+<text x="800" y="945" class="header">
+Floor Plans
+</text>
+
+<rect x="1020" y="900" width="240" height="90"
+      fill="white" class="box"/>
+<text x="1055" y="945" class="header">
+Emergency Exits
+</text>
+
+<rect x="1300" y="900" width="220" height="90"
+      fill="white" class="box"/>
+<text x="1345" y="945" class="header">
+Offline Cache
+</text>
+
+</svg>
+```

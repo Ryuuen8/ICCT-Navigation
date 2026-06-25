@@ -201,6 +201,9 @@ CACHES = {
         'LOCATION': 'redis://default:jHTsgPpAaIHbGPTsdvTPElpSPAbVoTjp@thomas.proxy.rlwy.net:14565',  # Use the appropriate Redis server URL
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+        },
+        "TIMEOUT": 3600,
+        "KEY_PREFIX": "webmap"
     }
 }
+

@@ -462,22 +462,28 @@ function finishPathfinding(pathData) {
 }
 
 // ─── PATHFINDING REQUEST ──────────────────────────────────────────────────────
-function findOfflinePath(start, end) {
+// in map.js — update findOfflinePath to pass emergency flag
+function findOfflinePath(start, end, isEmergency = false) {
     const graph = window.OfflinePathfinder?.loadGraphFromPage?.();
     if (!graph) return false;
 
-    const result = window.OfflinePathfinder.findPath(graph.locations, graph.connections, start, end);
+    const result = window.OfflinePathfinder.findPath(
+        graph.locations,
+        graph.connections,
+        start,
+        end,
+        isEmergency  // ✅ pass through
+    );
+
     if (result.error) {
         alert(`Navigation error: ${result.error}`);
         return true;
     }
 
-    console.log('PATH (offline):', result.path);
     finishPathfinding(result);
     showPathFoundToast(end);
     return true;
 }
-
 function requestPath(start, end) {
     // ✅ abort any in-flight request
     if (pathfindController) {
