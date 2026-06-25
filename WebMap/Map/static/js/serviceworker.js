@@ -7,7 +7,6 @@ const OFFLINE_URL = "/offline/";
 const APP_PAGES = [
     "/",
     "/map/",
-    "/emergency/",
     "/offline/",
     "/offline-map/",
 ];
@@ -159,17 +158,27 @@ self.addEventListener("install", (event) => {
 });
 
 // ─── ACTIVATE ─────────────────────────────────────────────────────────────────
-self.addEventListener("activate", (event) => {
+self.addEventListener("install", (event) => {
     event.waitUntil(
-        caches.keys()
-            .then((keys) =>
-                Promise.all(
-                    keys
-                        .filter((key) => !key.startsWith(CACHE_VERSION))
-                        .map((key) => caches.delete(key))
-                )
-            )
-            .then(() => self.clients.claim())
+        caches.open(STATIC_CACHE).then(async (cache) => {
+            await Promise.allSettled(
+                [...APP_PAGES, ...APP_STATIC].map(async (url) => {
+                    try {
+                        const response = await fetch(url);
+
+                        if (!response.ok) {
+                            throw new Error(`${response.status}`);
+                        }
+
+                        await cache.put(url, response);
+                    } catch (err) {
+                        console.error("Failed:", url, err);
+                    }
+                })
+            );
+
+            self.skipWaiting();
+        })
     );
 });
 
