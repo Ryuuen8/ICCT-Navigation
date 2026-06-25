@@ -1,6 +1,7 @@
 console.log("MAP JS LOADED");
 
-// ✅ tell SW to pre-cache map data for offline use
+// ─── SERVICE WORKER ──────────────────────────────────────────────────────────
+// ✅ Tell SW to pre-cache map data for offline use
 if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
     navigator.serviceWorker.controller.postMessage({ type: 'CACHE_MAP_DATA' });
 }
@@ -19,6 +20,37 @@ let resizeTimer;
 let pathfindController = null;
 
 const PENDING_DESTINATION_KEY = 'pendingNavigationDestination';
+
+// ─── EMERGENCY CACHE (Offline Ready) ────────────────────────────────────────
+const EMERGENCY_CACHE_KEY = 'emergency_paths_cache';
+const EMERGENCY_CACHE_TIME_KEY = 'emergency_paths_time';
+const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days (emergency data doesn't change often)
+
+function getCachedEmergencyPaths() {
+    try {
+        const cached = sessionStorage.getItem(EMERGENCY_CACHE_KEY);
+        const cachedTime = sessionStorage.getItem(EMERGENCY_CACHE_TIME_KEY);
+
+        if (cached && cachedTime && (Date.now() - parseInt(cachedTime)) < CACHE_DURATION) {
+            console.log('📦 Using cached emergency paths (offline ready)');
+            return JSON.parse(cached);
+        }
+        return null;
+    } catch (e) {
+        console.warn('Emergency cache read error:', e);
+        return null;
+    }
+}
+
+function cacheEmergencyPaths(data) {
+    try {
+        sessionStorage.setItem(EMERGENCY_CACHE_KEY, JSON.stringify(data));
+        sessionStorage.setItem(EMERGENCY_CACHE_TIME_KEY, String(Date.now()));
+        console.log('💾 Emergency paths cached for offline use');
+    } catch (e) {
+        console.warn('Emergency cache storage failed:', e);
+    }
+}
 
 // ─── FLOOR PLANS ──────────────────────────────────────────────────────────────
 const floorPlans = {
@@ -155,8 +187,43 @@ map.on('mousemove', (e) => {
     coordControl._div.innerHTML = `Y: ${e.latlng.lat.toFixed(1)} | X: ${e.latlng.lng.toFixed(1)}`;
 });
 
-// ─── DATA ─────────────────────────────────────────────────────────────────────
-const locations = JSON.parse(document.getElementById("locations-data").textContent);
+// ─── LOCATIONS (with caching) ────────────────────────────────────────────────
+const LOCATION_CACHE_KEY = 'cached_locations';
+const LOCATION_CACHE_TIME_KEY = 'cached_locations_time';
+const LOCATION_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+function getCachedLocations() {
+    try {
+        const cached = sessionStorage.getItem(LOCATION_CACHE_KEY);
+        const cachedTime = sessionStorage.getItem(LOCATION_CACHE_TIME_KEY);
+        if (cached && cachedTime && (Date.now() - parseInt(cachedTime)) < LOCATION_CACHE_DURATION) {
+            return JSON.parse(cached);
+        }
+        return null;
+    } catch (e) { return null; }
+}
+
+function cacheLocations(data) {
+    try {
+        sessionStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify(data));
+        sessionStorage.setItem(LOCATION_CACHE_TIME_KEY, String(Date.now()));
+    } catch (e) { }
+}
+
+function loadLocations() {
+    const cached = getCachedLocations();
+    if (cached) return cached;
+    try {
+        const data = JSON.parse(document.getElementById("locations-data").textContent);
+        cacheLocations(data);
+        return data;
+    } catch (e) {
+        console.error('Failed to load locations:', e);
+        return [];
+    }
+}
+
+const locations = loadLocations();
 const path = JSON.parse(document.getElementById("path-data").textContent);
 const searchMarkerLayer = L.layerGroup().addTo(map);
 
@@ -462,7 +529,6 @@ function finishPathfinding(pathData) {
 }
 
 // ─── PATHFINDING REQUEST ──────────────────────────────────────────────────────
-// in map.js — update findOfflinePath to pass emergency flag
 function findOfflinePath(start, end, isEmergency = false) {
     const graph = window.OfflinePathfinder?.loadGraphFromPage?.();
     if (!graph) return false;
@@ -472,7 +538,7 @@ function findOfflinePath(start, end, isEmergency = false) {
         graph.connections,
         start,
         end,
-        isEmergency  // ✅ pass through
+        isEmergency
     );
 
     if (result.error) {
@@ -484,8 +550,8 @@ function findOfflinePath(start, end, isEmergency = false) {
     showPathFoundToast(end);
     return true;
 }
+
 function requestPath(start, end) {
-    // ✅ abort any in-flight request
     if (pathfindController) {
         pathfindController.abort();
         pathfindController = null;
@@ -504,7 +570,6 @@ function requestPath(start, end) {
         return;
     }
 
-    // ✅ loading state
     if (compassBtn) compassBtn.style.opacity = '0.5';
 
     pathfindController = new AbortController();
@@ -551,7 +616,7 @@ function requestPath(start, end) {
         });
 }
 
-// ─── EMERGENCY PATHS ──────────────────────────────────────────────────────────
+// ─── EMERGENCY PATHS (OFFLINE READY) ────────────────────────────────────────
 const emergencyLayer = L.layerGroup();
 const emergencyRenderer = L.canvas();
 
@@ -580,6 +645,35 @@ function clearPulseAnimations() {
     pulseTimers = [];
 }
 
+async function loadEmergencyPaths() {
+    // ✅ 1. Try cache first (offline)
+    const cached = getCachedEmergencyPaths();
+    if (cached) {
+        console.log('✅ Using cached emergency paths (offline ready)');
+        return cached;
+    }
+
+    // ✅ 2. If online, fetch from server
+    if (!navigator.onLine) {
+        console.warn('⚠️ Offline and no emergency cache available');
+        return null;
+    }
+
+    try {
+        const res = await fetch('emergency-paths/');
+        if (!res.ok) throw new Error(`Failed to load emergency paths: ${res.status}`);
+        const data = await res.json();
+
+        // Cache for offline use
+        cacheEmergencyPaths(data);
+        console.log(`✅ Emergency paths loaded and cached: ${data.length} total paths`);
+        return data;
+    } catch (err) {
+        console.error('Failed to load emergency paths:', err);
+        return null;
+    }
+}
+
 async function toggleEmergencyPaths() {
     if (map.hasLayer(emergencyLayer)) {
         map.removeLayer(emergencyLayer);
@@ -592,12 +686,12 @@ async function toggleEmergencyPaths() {
     try {
         isLoadingEmergency = true;
 
-        // ✅ cache — only fetches once per page session
+        // ✅ Load from cache or network
+        emergencyCache = await loadEmergencyPaths();
+
         if (!emergencyCache) {
-            const res = await fetch('emergency-paths/');
-            if (!res.ok) throw new Error(`Failed to load emergency paths: ${res.status}`);
-            emergencyCache = await res.json();
-            console.log(`Emergency cache loaded: ${emergencyCache.length} total paths`);
+            alert('⚠️ Emergency paths not available offline. Please connect to the internet to download them.');
+            return;
         }
 
         emergencyLayer.clearLayers();
@@ -619,7 +713,6 @@ async function toggleEmergencyPaths() {
         floorPaths.forEach(({ from, to }) => {
             const coords = [[from[0], from[1]], [to[0], to[1]]];
 
-            // ✅ visible base line
             L.polyline(coords, {
                 color: 'red',
                 weight: 3,
@@ -628,7 +721,6 @@ async function toggleEmergencyPaths() {
                 renderer: emergencyRenderer
             }).addTo(emergencyLayer);
 
-            // ✅ arrow decorator
             const decorator = L.polylineDecorator(coords, {
                 patterns: [{
                     offset: '10%',
@@ -654,10 +746,34 @@ async function toggleEmergencyPaths() {
     }
 }
 
-// ✅ auto-trigger from ?emergency=true
+// ✅ Auto-load emergency cache on page load (for offline readiness)
+document.addEventListener('DOMContentLoaded', () => {
+    // Pre-load emergency paths into cache silently
+    if (navigator.onLine) {
+        loadEmergencyPaths().then(() => {
+            console.log('✅ Emergency paths pre-loaded for offline use');
+        });
+    } else {
+        // Check if we have cached data
+        const cached = getCachedEmergencyPaths();
+        if (cached) {
+            console.log('✅ Emergency paths available offline');
+        } else {
+            console.warn('⚠️ No emergency paths cached. Connect to the internet once to enable offline use.');
+        }
+    }
+});
+
+// ✅ Auto-trigger from ?emergency=true
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('emergency') === 'true') {
-    map.whenReady(() => toggleEmergencyPaths());
+    map.whenReady(async () => {
+        // Wait for cache to load if needed
+        if (!emergencyCache) {
+            emergencyCache = await loadEmergencyPaths();
+        }
+        toggleEmergencyPaths();
+    });
 }
 
 const emergencyAllExitsBtn = document.getElementById('emergencyAllExitsBtn');
@@ -780,10 +896,8 @@ function handleScannedLocation() {
 }
 
 // ─── LOCATION POLYGONS ────────────────────────────────────────────────────────
-// ✅ shared canvas renderer for all polygons
 const polygonRenderer = L.canvas();
 
-// ✅ group by floor to avoid repeated layer lookups
 const locationsByFloor = locations.reduce((acc, loc) => {
     if (!acc[loc.floor]) acc[loc.floor] = [];
     acc[loc.floor].push(loc);
@@ -800,11 +914,11 @@ Object.entries(locationsByFloor).forEach(([floor, floorLocs]) => {
             color: "transparent",
             weight: 2,
             fillOpacity: 0.15,
-            renderer: polygonRenderer  // ✅ canvas renderer
+            renderer: polygonRenderer
         });
 
         polygon.bindPopup(`<b>${loc.room_name}</b>`, {
-            autoPan: false  // ✅ skip autopan on popup open
+            autoPan: false
         });
 
         polygon.on("click", function () {
