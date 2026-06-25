@@ -1,9 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
-from django.core.paginator import Paginator
 from .models import Location, Connection, Announcement, HazardReport
-from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
 from .forms import ReportForm
 import json
@@ -15,6 +14,28 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from rest_framework.permissions import IsAdminUser
 from django.core.cache import cache
 
+# ─── CACHE TTLs ───────────────────────────────────────────────────────────────
+CACHE_TTL = {
+    'locations':       3600 * 24,
+    'connections':     3600 * 24,
+    'emergency_paths': 3600 * 6,
+    'announcements':   3600 * 1,
+    'floormap':        3600 * 24,
+    'pathfind_graph':  3600 * 24,
+}
+
+# ─── CACHE KEYS ───────────────────────────────────────────────────────────────
+LOCATION_CACHE_KEYS = [
+    'locations_data',
+    'floormap_locations',
+    'pathfind_graph',
+]
+
+CONNECTION_CACHE_KEYS = [
+    'connections_data',
+    'emergency_paths_data',
+    'pathfind_graph',
+]
 
 
 def staff_check(user):
@@ -22,12 +43,84 @@ def staff_check(user):
 
 
 def clear_map_cache():
-    cache.delete('locations_data')
-    cache.delete('connections_data')
-    cache.delete('emergency_paths_data')
-    cache.delete('floormap_locations')
+    keys = list(set(LOCATION_CACHE_KEYS + CONNECTION_CACHE_KEYS))
+    cache.delete_many(keys)
 
 
+def clear_location_cache():
+    cache.delete_many(LOCATION_CACHE_KEYS)
+
+
+def clear_connection_cache():
+    cache.delete_many(CONNECTION_CACHE_KEYS)
+
+
+# ─── PATHFIND GRAPH CACHE ─────────────────────────────────────────────────────
+def get_pathfind_graph():
+    graph_data = cache.get('pathfind_graph')
+    if graph_data is not None:
+        return graph_data
+
+    locations = list(Location.objects.all())
+    connections = list(
+        Connection.objects.select_related('from_location', 'to_location')
+    )
+
+    stair_x = [
+        loc.x_coordinate for loc in locations
+        if 'stair' in loc.room_name.lower()
+    ]
+    stair_threshold = (min(stair_x) + max(stair_x)) / 2 if stair_x else 0
+
+    emergency_rooms = [
+        loc.room_name for loc in locations
+        if 'emergency node' in loc.room_name.lower()
+    ]
+
+    bridge_rooms = [
+        loc.room_name for loc in locations
+        if 'bridge node' in loc.room_name.lower()
+    ]
+
+    nodes = {}
+    for loc in locations:
+        stair_type = loc.stair_type
+        if stair_type is None and 'stair' in loc.room_name.lower():
+            stair_type = (
+                Location.STAIR_TYPE_ENTRANCE
+                if loc.x_coordinate > stair_threshold
+                else Location.STAIR_TYPE_EXIT
+            )
+        nodes[loc.room_name] = {
+            'pos': (loc.x_coordinate, loc.y_coordinate, loc.floor_location),
+            'stair_type': stair_type
+        }
+
+    edges = [
+        {
+            'from': conn.from_location.room_name,
+            'to': conn.to_location.room_name,
+            'cost': conn.cost,
+            'from_floor': conn.from_location.floor_location,
+            'to_floor': conn.to_location.floor_location,
+            'is_emergency': conn.is_emergency,
+            'floor_diff': conn.to_location.floor_location - conn.from_location.floor_location,
+        }
+        for conn in connections
+    ]
+
+    graph_data = {
+        'nodes': nodes,
+        'edges': edges,
+        'emergency_rooms': emergency_rooms,
+        'bridge_rooms': bridge_rooms,
+    }
+
+    cache.set('pathfind_graph', graph_data, CACHE_TTL['pathfind_graph'])
+    return graph_data
+
+
+# ─── VIEWSETS ─────────────────────────────────────────────────────────────────
 class LocationViewSet(viewsets.ModelViewSet):
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
@@ -35,15 +128,15 @@ class LocationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save()
-        clear_map_cache()
+        clear_location_cache()
 
     def perform_update(self, serializer):
         serializer.save()
-        clear_map_cache()
+        clear_location_cache()
 
     def perform_destroy(self, instance):
         instance.delete()
-        clear_map_cache()
+        clear_location_cache()
 
 
 class ConnectionViewSet(viewsets.ModelViewSet):
@@ -53,15 +146,15 @@ class ConnectionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save()
-        clear_map_cache()
+        clear_connection_cache()
 
     def perform_update(self, serializer):
         serializer.save()
-        clear_map_cache()
+        clear_connection_cache()
 
     def perform_destroy(self, instance):
         instance.delete()
-        clear_map_cache()
+        clear_connection_cache()
 
 
 class AnnouncementViewSet(viewsets.ModelViewSet):
@@ -76,6 +169,7 @@ class HazardReportViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminUser]
 
 
+# ─── VIEWS ────────────────────────────────────────────────────────────────────
 def announcement(request):
     if request.method == "POST":
         form = ReportForm(request.POST, request.FILES)
@@ -109,7 +203,7 @@ def floormap(request):
                 Q(room_name__contains="NULL")
             )
         )
-        cache.set('floormap_locations', locations, 3600)
+        cache.set('floormap_locations', locations, CACHE_TTL['floormap'])
 
     return render(request, 'floor-maps.html', {"locations": locations})
 
@@ -141,147 +235,67 @@ def locate(request):
     except ValueError:
         return JsonResponse({"error": "Invalid coordinate format"}, status=400)
 
+    from django.urls import reverse
+    base_url = reverse('mainmap')
     query_string = f"?x={x}&y={y}&floor={floor}"
     if name:
         query_string += f"&name={name}"
 
-    return redirect(f"/map/{query_string}")
+    return redirect(f"{base_url}{query_string}")
 
 
 def pathfind(request):
     if request.method != "POST":
-        return JsonResponse(
-            {"error": "POST request required"},
-            status=400
-        )
+        return JsonResponse({"error": "POST request required"}, status=400)
 
     try:
         request_data = json.loads(request.body or b"{}")
     except json.JSONDecodeError:
-        return JsonResponse(
-            {"error": "Invalid JSON body"},
-            status=400
-        )
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
 
     start = request_data.get("start")
     end = request_data.get("end")
-    is_emergency = request_data.get("emergency", False)
+    is_emergency = bool(request_data.get("emergency", False))
 
     if not start or not end:
-        return JsonResponse(
-            {"error": "Missing start or end room"},
-            status=400
-        )
+        return JsonResponse({"error": "Missing start or end room"}, status=400)
+
+    # ✅ use cached graph — avoids DB query on every pathfind request
+    graph_data = get_pathfind_graph()
 
     G = nx.DiGraph()
+    emergency_rooms = set(graph_data['emergency_rooms'])
 
-    locations = list(Location.objects.all())
+    for name, data in graph_data['nodes'].items():
+        G.add_node(name, pos=data['pos'], stair_type=data['stair_type'])
 
-    emergency_rooms = {
-        loc.room_name
-        for loc in locations
-        if "emergency node" in loc.room_name.lower()
-    }
-
-    bridge_rooms = {
-        loc.room_name
-        for loc in locations
-        if "bridge node" in loc.room_name.lower()
-    }
-
-    stair_x = [
-        loc.x_coordinate
-        for loc in locations
-        if "stair" in loc.room_name.lower()
-    ]
-
-    stair_threshold = (
-        (min(stair_x) + max(stair_x)) / 2
-        if stair_x else 0
-    )
-
-    # ─────────────────────────
-    # ADD NODES
-    # ─────────────────────────
-
-    for loc in locations:
-
-        stair_type = loc.stair_type
-
-        if stair_type is None and "stair" in loc.room_name.lower():
-            stair_type = (
-                Location.STAIR_TYPE_ENTRANCE
-                if loc.x_coordinate > stair_threshold
-                else Location.STAIR_TYPE_EXIT
-            )
-
-        G.add_node(
-            loc.room_name,
-            pos=(
-                loc.x_coordinate,
-                loc.y_coordinate,
-                loc.floor_location
-            ),
-            stair_type=stair_type
-        )
-
-    # ─────────────────────────
-    # ADD EDGES
-    # ─────────────────────────
-
-    connections = Connection.objects.select_related(
-        "from_location",
-        "to_location"
-    )
-
-    for conn in connections:
-
-        # Skip emergency-only routes
-        if conn.is_emergency and not is_emergency:
+    for edge in graph_data['edges']:
+        if edge['is_emergency'] and not is_emergency:
             continue
-
-        from_floor = conn.from_location.floor_location
-        to_floor = conn.to_location.floor_location
-
         G.add_edge(
-            conn.from_location.room_name,
-            conn.to_location.room_name,
-            weight=conn.cost,
-            floor_diff=to_floor - from_floor
+            edge['from'], edge['to'],
+            weight=edge['cost'],
+            floor_diff=edge['floor_diff']
         )
-
         G.add_edge(
-            conn.to_location.room_name,
-            conn.from_location.room_name,
-            weight=conn.cost,
-            floor_diff=from_floor - to_floor
+            edge['to'], edge['from'],
+            weight=edge['cost'],
+            floor_diff=-edge['floor_diff']
         )
 
     if start not in G:
-        return JsonResponse(
-            {"error": f"Start room '{start}' not found"},
-            status=400
-        )
+        return JsonResponse({"error": f"Start room '{start}' not found"}, status=400)
 
     if end not in G:
-        return JsonResponse(
-            {"error": f"Destination room '{end}' not found"},
-            status=400
-        )
+        return JsonResponse({"error": f"Destination room '{end}' not found"}, status=400)
 
     start_floor = G.nodes[start]["pos"][2]
     end_floor = G.nodes[end]["pos"][2]
-
     same_floor = start_floor == end_floor
 
     allowed_direction = None
-
     if not same_floor:
-        allowed_direction = (
-            "up"
-            if start_floor < end_floor
-            else "down"
-        )
+        allowed_direction = "up" if start_floor < end_floor else "down"
 
     blocked_rooms = {"Library"}
     allowed_endpoints = {start, end}
@@ -289,169 +303,84 @@ def pathfind(request):
     H = nx.DiGraph()
     H.add_nodes_from(G.nodes(data=True))
 
-    # ─────────────────────────
-    # FILTER EDGES
-    # ─────────────────────────
-
     for u, v, edge_data in G.edges(data=True):
-
-        floor_diff = edge_data.get(
-            "floor_diff",
-            0
-        )
+        floor_diff = edge_data.get("floor_diff", 0)
 
         if same_floor and floor_diff != 0:
             continue
 
-        if (
-            u in blocked_rooms
-            and u not in allowed_endpoints
-        ):
+        if u in blocked_rooms and u not in allowed_endpoints:
             continue
-
-        if (
-            v in blocked_rooms
-            and v not in allowed_endpoints
-        ):
+        if v in blocked_rooms and v not in allowed_endpoints:
             continue
 
         if not is_emergency:
-
-            if (
-                u in emergency_rooms
-                and u not in allowed_endpoints
-            ):
+            if u in emergency_rooms and u not in allowed_endpoints:
                 continue
-
-            if (
-                v in emergency_rooms
-                and v not in allowed_endpoints
-            ):
+            if v in emergency_rooms and v not in allowed_endpoints:
                 continue
 
         u_type = G.nodes[u].get("stair_type")
         v_type = G.nodes[v].get("stair_type")
 
         if allowed_direction == "up":
-
-            if (
-                floor_diff != 0 and
-                (
-                    u_type == Location.STAIR_TYPE_EXIT or
-                    v_type == Location.STAIR_TYPE_EXIT
-                )
+            if floor_diff != 0 and (
+                u_type == Location.STAIR_TYPE_EXIT or
+                v_type == Location.STAIR_TYPE_EXIT
             ):
                 continue
-
         elif allowed_direction == "down":
-
-            if (
-                floor_diff != 0 and
-                (
-                    u_type == Location.STAIR_TYPE_ENTRANCE or
-                    v_type == Location.STAIR_TYPE_ENTRANCE
-                )
+            if floor_diff != 0 and (
+                u_type == Location.STAIR_TYPE_ENTRANCE or
+                v_type == Location.STAIR_TYPE_ENTRANCE
             ):
                 continue
 
         H.add_edge(u, v, **edge_data)
 
-    # ─────────────────────────
-    # HEURISTIC
-    # ─────────────────────────
-
     def heuristic(a, b):
-
         ax, ay, af = H.nodes[a]["pos"]
         bx, by, bf = H.nodes[b]["pos"]
-
-        floor_penalty = abs(af - bf) * 100
-
-        return (
-            math.hypot(ax - bx, ay - by)
-            + floor_penalty
-        )
+        return math.hypot(ax - bx, ay - by) + abs(af - bf) * 100
 
     try:
-
-        path = nx.astar_path(
-            H,
-            start,
-            end,
-            heuristic=heuristic,
-            weight="weight"
-        )
-
+        path = nx.astar_path(H, start, end, heuristic=heuristic, weight="weight")
     except nx.NodeNotFound as e:
-
-        return JsonResponse(
-            {"error": str(e)},
-            status=400
-        )
-
+        return JsonResponse({"error": str(e)}, status=400)
     except nx.NetworkXNoPath:
-
-        return JsonResponse(
-            {"error": "No path found"},
-            status=404
-        )
-
-    # ─────────────────────────
-    # BUILD RESPONSE
-    # ─────────────────────────
+        return JsonResponse({"error": "No path found"}, status=404)
 
     full_coords = []
     segments = []
-
     current_floor = None
     current_segment = []
 
     for node in path:
-
         x, y, floor = G.nodes[node]["pos"]
-
-        full_coords.append([
-            y,
-            x,
-            floor
-        ])
+        full_coords.append([y, x, floor])
 
         if current_floor is None:
-
             current_floor = floor
             current_segment = [[y, x]]
             continue
 
         if floor != current_floor:
-
             if len(current_segment) >= 2:
-                segments.append({
-                    "floor": current_floor,
-                    "coords": current_segment
-                })
-
+                segments.append({"floor": current_floor, "coords": current_segment})
             current_floor = floor
             current_segment = [[y, x]]
-
         else:
-
-            current_segment.append([
-                y,
-                x
-            ])
+            current_segment.append([y, x])
 
     if len(current_segment) >= 2:
-
-        segments.append({
-            "floor": current_floor,
-            "coords": current_segment
-        })
+        segments.append({"floor": current_floor, "coords": current_segment})
 
     return JsonResponse({
         "path": full_coords,
         "segments": segments,
         "destination": end
     })
+
 
 def index(request):
     locations = cache.get("locations_data")
@@ -468,9 +397,14 @@ def index(request):
                 "y_coordinate": loc.y_coordinate,
                 "stair_type": loc.stair_type,
             }
-            for loc in Location.objects.all()
+            for loc in Location.objects.exclude(
+                # ✅ exclude non-clickable nodes from frontend payload
+                Q(room_name__contains="EMERGENCY NODE") |
+                Q(room_name__contains="NULL") |
+                Q(room_name__contains="BRIDGE NODE")
+            )
         ]
-        cache.set("locations_data", locations, 3600)
+        cache.set("locations_data", locations, CACHE_TTL['locations'])
 
     if connections is None:
         connections = [
@@ -480,10 +414,13 @@ def index(request):
                 "cost": conn.cost,
                 "from_floor": conn.from_location.floor_location,
                 "to_floor": conn.to_location.floor_location,
+                "is_emergency": conn.is_emergency,
             }
-            for conn in Connection.objects.select_related("from_location", "to_location")
+            for conn in Connection.objects.select_related(
+                "from_location", "to_location"
+            )
         ]
-        cache.set("connections_data", connections, 3600)
+        cache.set("connections_data", connections, CACHE_TTL['connections'])
 
     return render(request, "index.html", {
         "locations": locations,
@@ -493,8 +430,7 @@ def index(request):
 
 
 def offline_map(request):
-    locations = Location.objects.all()
-    data = [
+    locations = [
         {
             "floor": loc.floor_location,
             "floor_location": loc.floor_location,
@@ -504,7 +440,7 @@ def offline_map(request):
             "y_coordinate": loc.y_coordinate,
             "stair_type": loc.stair_type,
         }
-        for loc in locations
+        for loc in Location.objects.all()
     ]
     connections_data = [
         {
@@ -513,12 +449,15 @@ def offline_map(request):
             "cost": conn.cost,
             "from_floor": conn.from_location.floor_location,
             "to_floor": conn.to_location.floor_location,
+            "is_emergency": conn.is_emergency,
         }
-        for conn in Connection.objects.select_related("from_location", "to_location").all()
+        for conn in Connection.objects.select_related(
+            "from_location", "to_location"
+        ).all()
     ]
 
     return render(request, "offline-map.html", {
-        "locations": data,
+        "locations": locations,
         "connections": connections_data,
         "path": [],
     })
@@ -531,7 +470,9 @@ def offline(request):
 @login_required(login_url="admin:login")
 @user_passes_test(staff_check)
 def admin_dashboard(request):
-    locations = Location.objects.all()
+    locations = Location.objects.only(
+        'room_name', 'floor_location', 'x_coordinate', 'y_coordinate'
+    )
     data = [
         {
             "floor": loc.floor_location,
@@ -541,18 +482,15 @@ def admin_dashboard(request):
         }
         for loc in locations
     ]
-    G = nx.Graph()
-    for loc in locations:
-        G.add_node(loc.room_name, pos=(loc.floor_location, loc.x_coordinate, loc.y_coordinate))
-    for conn in Connection.objects.all():
-        G.add_edge(conn.from_location.room_name, conn.to_location.room_name, weight=conn.cost)
     return render(request, 'admin/admin-dashboard.html', {"locations": data})
 
 
 @login_required(login_url="admin:login")
 @user_passes_test(staff_check)
 def admin_management(request):
-    locations = Location.objects.all()
+    locations = Location.objects.only(
+        'room_name', 'floor_location', 'x_coordinate', 'y_coordinate'
+    )
     data = [
         {
             "floor": loc.floor_location,
@@ -562,11 +500,6 @@ def admin_management(request):
         }
         for loc in locations
     ]
-    G = nx.Graph()
-    for loc in locations:
-        G.add_node(loc.room_name, pos=(loc.floor_location, loc.x_coordinate, loc.y_coordinate))
-    for conn in Connection.objects.all():
-        G.add_edge(conn.from_location.room_name, conn.to_location.room_name, weight=conn.cost)
     return render(request, 'admin/admin-management.html', {"locations": data})
 
 
@@ -604,7 +537,7 @@ def save_room(request):
             )
             created += 1
 
-        clear_map_cache()
+        clear_location_cache()
         return JsonResponse({"status": "saved", "created": created})
 
     except Exception as e:
@@ -648,7 +581,7 @@ def save_connection(request):
             cost=float(cost)
         )
 
-        clear_map_cache()
+        clear_connection_cache()
         return JsonResponse({"status": "saved", "connection_id": conn.id})
 
     except json.JSONDecodeError:
@@ -658,22 +591,12 @@ def save_connection(request):
 
 
 def emergency_paths(request):
-    # Clear cache to force fresh data
-    cache.delete('emergency_paths_data')
-    
     data = cache.get('emergency_paths_data')
 
     if data is None:
         connections = Connection.objects.filter(
             is_emergency=True
         ).select_related('from_location', 'to_location')
-        
-        # Debug: Print count
-        print(f"Found {connections.count()} emergency connections")
-        
-        # Debug: Print each connection
-        for conn in connections:
-            print(f"Connection: from {conn.from_location.room_name} (floor {conn.from_location.floor_location}) to {conn.to_location.room_name} (floor {conn.to_location.floor_location})")
 
         data = [
             {
@@ -690,9 +613,6 @@ def emergency_paths(request):
             }
             for conn in connections
         ]
-        cache.set('emergency_paths_data', data, 3600)
-    
-    # Debug: Log what's being returned
-    print(f"Returning {len(data)} paths")
-    
+        cache.set('emergency_paths_data', data, CACHE_TTL['emergency_paths'])
+
     return JsonResponse(data, safe=False)
