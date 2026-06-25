@@ -29,7 +29,7 @@ const APP_STATIC = [
     "/static/images/4.svg",
     "/static/images/5.svg",
     "/static/images/2B.svg",
-    "/static/images/3B.svg",
+    "/static/images/3b.svg",
     "/static/images/6.svg",
 ];
 
