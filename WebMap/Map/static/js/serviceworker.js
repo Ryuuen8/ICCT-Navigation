@@ -149,36 +149,34 @@ function offlineFallback(message) {
 // ─── INSTALL — defer heavy caching so it doesn't block page load ──────────────
 self.addEventListener("install", (event) => {
     event.waitUntil(
-        // ✅ only cache critical static assets on install
-        // CDN assets cached lazily on first use via staleWhileRevalidate
-        caches.open(STATIC_CACHE)
-            .then((cache) => cache.addAll([...APP_PAGES, ...APP_STATIC].filter(Boolean)))
-            .then(() => self.skipWaiting())
-    );
-});
-
-// ─── ACTIVATE ─────────────────────────────────────────────────────────────────
-self.addEventListener("install", (event) => {
-    event.waitUntil(
         caches.open(STATIC_CACHE).then(async (cache) => {
-            await Promise.allSettled(
-                [...APP_PAGES, ...APP_STATIC].map(async (url) => {
-                    try {
-                        const response = await fetch(url);
+            const assets = [...APP_PAGES, ...APP_STATIC];
 
-                        if (!response.ok) {
-                            throw new Error(`${response.status}`);
-                        }
-
-                        await cache.put(url, response);
-                    } catch (err) {
-                        console.error("Failed:", url, err);
-                    }
-                })
-            );
+            for (const asset of assets) {
+                try {
+                    await cache.add(asset);
+                    console.log("Cached:", asset);
+                } catch (err) {
+                    console.warn("Skipped:", asset, err);
+                }
+            }
 
             self.skipWaiting();
         })
+    );
+});
+// ─── ACTIVATE ─────────────────────────────────────────────────────────────────
+self.addEventListener("activate", (event) => {
+    event.waitUntil(
+        caches.keys()
+            .then((keys) =>
+                Promise.all(
+                    keys
+                        .filter((key) => !key.startsWith(CACHE_VERSION))
+                        .map((key) => caches.delete(key))
+                )
+            )
+            .then(() => self.clients.claim())
     );
 });
 
