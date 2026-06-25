@@ -19,8 +19,6 @@
         <!-- Font Awesome -->
         <link rel="stylesheet"
               href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-        <!-- Barcode Scanner -->
-        <script src="https://cdn.jsdelivr.net/npm/dynamsoft-barcode-reader-bundle@11.2.4000/dist/dbr.bundle.js"></script>
         <!-- jsQR for camera-based QR decoding -->
         <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
         <!-- Leaflet JavaScript -->
@@ -162,6 +160,19 @@
 
             // MAIN SCAN FUNCTION - Called when clicking the scan button
             async function scan() {
+                if (isScanning) return;
+                isScanning = true;
+
+                // ✅ only load Dynamsoft when user actually scans
+                if (typeof Dynamsoft === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/dynamsoft-barcode-reader-bundle@11.2.4000/dist/dbr.bundle.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
                 if (isScanning) {
                     console.log('Already scanning');
                     return;

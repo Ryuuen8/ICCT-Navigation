@@ -1,4 +1,4 @@
-const CACHE_VERSION = "webmap-pwa-v8";
+const CACHE_VERSION = "webmap-pwa-v9";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const OFFLINE_URL = "/offline/";
@@ -31,8 +31,9 @@ const APP_STATIC = [
     "/static/images/3.svg",
     "/static/images/4.svg",
     "/static/images/5.svg",
-    '/static/images/3B.svg',
-    '/static/images/2B.svg',
+    "/static/images/2B.svg",
+    "/static/images/3B.svg",
+    "/static/images/6.svg",
 ];
 
 const CDN_ASSETS = [
@@ -43,7 +44,6 @@ const CDN_ASSETS = [
     "https://unpkg.com/@elfalem/leaflet-curve",
     "https://cdn.jsdelivr.net/npm/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.min.js",
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css",
-    // ✅ font awesome webfonts needed for icons to render
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/webfonts/fa-solid-900.woff2",
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/webfonts/fa-regular-400.woff2",
 ];
@@ -72,6 +72,7 @@ const CDN_HOSTS = [
 
 const DYNAMIC_CACHE_LIMIT = 60;
 
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 function isNavigationRequest(request) {
     return request.mode === "navigate" ||
         (request.method === "GET" && request.headers.get("accept")?.includes("text/html"));
@@ -99,54 +100,43 @@ function isCdnRequest(url) {
     return CDN_HOSTS.some((host) => url.hostname.endsWith(host));
 }
 
+// ✅ fixed trimCache — iterative not recursive, only runs when over limit
 async function trimCache(cacheName, maxEntries) {
     const cache = await caches.open(cacheName);
     const keys = await cache.keys();
-    if (keys.length > maxEntries) {
-        await cache.delete(keys[0]);
-        await trimCache(cacheName, maxEntries);
-    }
+    if (keys.length <= maxEntries) return;
+    const toDelete = keys.slice(0, keys.length - maxEntries);
+    await Promise.all(toDelete.map(key => cache.delete(key)));
 }
 
+// ─── STRATEGIES ───────────────────────────────────────────────────────────────
+
+// ✅ cacheFirst — for SVGs and static assets that never change
+// does NOT use cache:"reload" — lets browser HTTP cache work normally
 async function cacheFirst(request, cacheName) {
     const cache = await caches.open(cacheName);
     const cached = await cache.match(request);
     if (cached) return cached;
 
-    const response = await fetch(request, { cache: "reload" });
+    const response = await fetch(request);  // ✅ removed cache:"reload"
     if (response.ok) {
         cache.put(request, response.clone());
-        trimCache(cacheName, DYNAMIC_CACHE_LIMIT);
     }
     return response;
 }
 
-async function networkFirstStatic(request, cacheName) {
-    const cache = await caches.open(cacheName);
-
-    try {
-        const response = await fetch(request, { cache: "reload" });
-        if (response.ok) {
-            cache.put(request, response.clone());
-        }
-        return response;
-    } catch (error) {
-        const cached = await cache.match(request);
-        if (cached) return cached;
-        throw error;
-    }
-}
-
+// ✅ networkFirst — for HTML pages and API data
+// tries network, falls back to cache, then optional fallback URL
 async function networkFirst(request, cacheName, fallbackUrl) {
     try {
         const response = await fetch(request);
         if (response.ok) {
             const cache = await caches.open(cacheName);
             cache.put(request, response.clone());
-            trimCache(cacheName, DYNAMIC_CACHE_LIMIT);
+            trimCache(cacheName, DYNAMIC_CACHE_LIMIT); // fire and forget
         }
         return response;
-    } catch (error) {
+    } catch {
         const cached = await caches.match(request);
         if (cached) return cached;
 
@@ -155,10 +145,12 @@ async function networkFirst(request, cacheName, fallbackUrl) {
             if (fallback) return fallback;
         }
 
-        throw error;
+        throw new Error(`Network error and no cache for ${request.url}`);
     }
 }
 
+// ✅ staleWhileRevalidate — for CDN assets
+// returns cache immediately, updates in background
 async function staleWhileRevalidate(request, cacheName) {
     const cache = await caches.open(cacheName);
     const cached = await cache.match(request);
@@ -173,36 +165,30 @@ async function staleWhileRevalidate(request, cacheName) {
         })
         .catch(() => null);
 
-    return cached || networkPromise || fetch(request);
+    // ✅ return cache immediately if available, don't await network
+    return cached ?? networkPromise;
 }
 
-// ✅ offline fallback for pathfinding — uses cached locations/connections
-async function offlinePathfindFallback(request) {
-    try {
-        const response = await fetch(request);
-        return response;
-    } catch {
-        return new Response(
-            JSON.stringify({
-                error: "offline",
-                offline: true,
-                message: "You are offline. Using offline navigation."
-            }),
-            {
-                status: 503,
-                headers: { "Content-Type": "application/json" },
-            }
+// ✅ networkOnly with offline fallback — for write endpoints
+function networkOnlyWithFallback(offlineMessage) {
+    return (request) =>
+        fetch(request).catch(() =>
+            new Response(
+                JSON.stringify({ error: offlineMessage, offline: true }),
+                { status: 503, headers: { "Content-Type": "application/json" } }
+            )
         );
-    }
 }
 
+// ─── INSTALL ──────────────────────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
     event.waitUntil(
         Promise.all([
+            // ✅ static assets — must all succeed or install fails
             caches.open(STATIC_CACHE).then((cache) =>
                 cache.addAll([...APP_PAGES, ...APP_STATIC].filter(Boolean))
             ),
-            // ✅ CDN assets fail silently per-item
+            // ✅ CDN assets — fail silently per item
             caches.open(DYNAMIC_CACHE).then((cache) =>
                 Promise.allSettled(
                     CDN_ASSETS.map((url) =>
@@ -216,19 +202,27 @@ self.addEventListener("install", (event) => {
     );
 });
 
+// ─── ACTIVATE ─────────────────────────────────────────────────────────────────
 self.addEventListener("activate", (event) => {
     event.waitUntil(
-        caches.keys().then((keys) =>
-            Promise.all(
-                keys
-                    .filter((key) => !key.startsWith(CACHE_VERSION))
-                    .map((key) => caches.delete(key))
+        caches.keys()
+            .then((keys) =>
+                Promise.all(
+                    keys
+                        .filter((key) => !key.startsWith(CACHE_VERSION))
+                        .map((key) => {
+                            console.log(`SW: deleting old cache ${key}`);
+                            return caches.delete(key);
+                        })
+                )
             )
-        ).then(() => self.clients.claim())
+            .then(() => self.clients.claim())
     );
 });
 
+// ─── MESSAGES ─────────────────────────────────────────────────────────────────
 self.addEventListener("message", (event) => {
+
     if (event.data?.type === "SKIP_WAITING") {
         self.skipWaiting();
     }
@@ -236,110 +230,106 @@ self.addEventListener("message", (event) => {
     if (event.data?.type === "CLEAR_EMERGENCY_CACHE") {
         caches.open(DYNAMIC_CACHE).then((cache) => {
             cache.delete("/emergency-paths/");
+            console.log("SW: emergency cache cleared");
         });
     }
 
-    // ✅ pre-cache map data when user visits map page while online
+    // ✅ pre-cache API data when user visits map while online
     if (event.data?.type === "CACHE_MAP_DATA") {
+        const urlsToCache = [
+            "/api/locations/",
+            "/api/connections/",
+            "/emergency-paths/",
+        ];
         caches.open(DYNAMIC_CACHE).then((cache) => {
-            const urlsToCache = [
-                "/api/locations/",
-                "/api/connections/",
-                "/emergency-paths/",
-            ];
             Promise.allSettled(
                 urlsToCache.map((url) =>
-                    fetch(url).then((res) => {
-                        if (res.ok) cache.put(url, res.clone());
+                    // ✅ check cache first — don't re-fetch if already cached
+                    cache.match(url).then((cached) => {
+                        if (cached) return;
+                        return fetch(url).then((res) => {
+                            if (res.ok) cache.put(url, res.clone());
+                        });
                     }).catch(() => { })
                 )
             );
         });
     }
+
+    // ✅ force refresh specific cache keys from admin updates
+    if (event.data?.type === "INVALIDATE_CACHE") {
+        const keys = event.data.keys ?? [];
+        caches.open(DYNAMIC_CACHE).then((cache) => {
+            Promise.all(keys.map((key) => cache.delete(key)));
+        });
+    }
 });
 
+// ─── FETCH ────────────────────────────────────────────────────────────────────
 self.addEventListener("fetch", (event) => {
     const { request } = event;
 
-    if (request.method !== "GET" && request.method !== "POST") {
-        return;
-    }
+    if (request.method !== "GET" && request.method !== "POST") return;
 
     const url = new URL(request.url);
 
-    if (url.origin !== self.location.origin && !isCdnRequest(url)) {
-        return;
-    }
+    if (url.origin !== self.location.origin && !isCdnRequest(url)) return;
 
-    // ✅ pathfind — try network, return offline signal if fails
+    // ── pathfind — network only, offline signal on failure ──────────────────
     if (url.pathname.startsWith("/pathfind/")) {
-        event.respondWith(offlinePathfindFallback(request));
+        event.respondWith(
+            networkOnlyWithFallback("You are offline. Using offline navigation.")(request)
+        );
         return;
     }
 
-    // ✅ never cache other write endpoints
+    // ── write endpoints — never cache ────────────────────────────────────────
     if (isNoCacheApi(url)) {
         event.respondWith(
-            fetch(request).catch(() =>
-                new Response(
-                    JSON.stringify({
-                        error: "You are offline. This action requires an internet connection.",
-                        offline: true,
-                    }),
-                    {
-                        status: 503,
-                        headers: { "Content-Type": "application/json" },
-                    }
-                )
-            )
+            networkOnlyWithFallback("You are offline. This action requires an internet connection.")(request)
         );
         return;
     }
 
+    // ── all remaining POSTs ──────────────────────────────────────────────────
     if (request.method === "POST") {
         event.respondWith(
-            fetch(request).catch(() =>
-                new Response(
-                    JSON.stringify({
-                        error: "You are offline. This action requires an internet connection.",
-                        offline: true,
-                    }),
-                    {
-                        status: 503,
-                        headers: { "Content-Type": "application/json" },
-                    }
-                )
-            )
+            networkOnlyWithFallback("You are offline. This action requires an internet connection.")(request)
         );
         return;
     }
 
-    // ✅ floor SVGs — cache first, they never change
+    // ── floor SVGs + images — cache first (they never change) ────────────────
     if (isFloorImage(url)) {
         event.respondWith(cacheFirst(request, STATIC_CACHE));
         return;
     }
 
+    // ── HTML navigation — network first, offline fallback ────────────────────
     if (isNavigationRequest(request)) {
         event.respondWith(networkFirst(request, DYNAMIC_CACHE, OFFLINE_URL));
         return;
     }
 
+    // ── API GET — network first, serve stale if offline ──────────────────────
     if (isApiGet(request, url)) {
         event.respondWith(networkFirst(request, DYNAMIC_CACHE));
         return;
     }
 
+    // ── other static assets (JS, CSS) — cache first ──────────────────────────
     if (isStaticAsset(url)) {
-        event.respondWith(networkFirstStatic(request, STATIC_CACHE));
+        event.respondWith(cacheFirst(request, STATIC_CACHE));
         return;
     }
 
+    // ── CDN — stale while revalidate ─────────────────────────────────────────
     if (isCdnRequest(url)) {
         event.respondWith(staleWhileRevalidate(request, DYNAMIC_CACHE));
         return;
     }
 
+    // ── everything else — network with cache fallback ────────────────────────
     event.respondWith(
         fetch(request).catch(() => caches.match(request))
     );
