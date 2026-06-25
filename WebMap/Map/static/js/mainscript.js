@@ -371,5 +371,27 @@ document.addEventListener('DOMContentLoaded', () => {
             contactPopup.setAttribute('aria-hidden', 'true');
         }
     });
+    // ✅ add to mainscript.js — fires when home page loads
+    function notifySW(type, data = {}) {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type, ...data });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // ✅ pre-cache locations for search and emergency paths
+        notifySW('CACHE_SEARCH_DATA');
+        notifySW('CACHE_EMERGENCY_DATA');
+    });
+
+    // ✅ when user clicks emergency button — ensure data is fresh
+    document.getElementById('emergency-card')?.addEventListener('click', () => {
+        notifySW('CACHE_EMERGENCY_DATA');
+    });
+
+    // ✅ when "View All Floor Exit Routes" is clicked — invalidate and refresh
+    document.getElementById('emergencyAllExitsBtn')?.addEventListener('click', () => {
+        notifySW('INVALIDATE_CACHE', { keys: ['/emergency-paths/'] });
+    });
 });
 
