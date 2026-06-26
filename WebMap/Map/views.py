@@ -468,8 +468,8 @@ def offline(request):
     return render(request, 'offline.html')
 
 
-@login_required(login_url="admin:login")
-@user_passes_test(staff_check)
+#@login_required(login_url="admin:login")
+#@user_passes_test(staff_check)
 def admin_dashboard(request):
     locations = Location.objects.only(
         'room_name', 'floor_location', 'x_coordinate', 'y_coordinate'
