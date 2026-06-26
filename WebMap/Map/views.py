@@ -260,7 +260,6 @@ def pathfind(request):
     if not start or not end:
         return JsonResponse({"error": "Missing start or end room"}, status=400)
 
-    # ✅ use cached graph — avoids DB query on every pathfind request
     graph_data = get_pathfind_graph()
 
     G = nx.DiGraph()
@@ -398,7 +397,6 @@ def index(request):
                 "stair_type": loc.stair_type,
             }
             for loc in Location.objects.exclude(
-                # ✅ exclude non-clickable nodes from frontend payload
                 Q(room_name__contains="EMERGENCY NODE") |
                 Q(room_name__contains="NULL") |
                 Q(room_name__contains="BRIDGE NODE")
@@ -485,8 +483,8 @@ def admin_dashboard(request):
     return render(request, 'admin/admin-dashboard.html', {"locations": data})
 
 
-@login_required(login_url="admin:login")
-@user_passes_test(staff_check)
+#@login_required(login_url="admin:login")
+#@user_passes_test(staff_check)
 def admin_management(request):
     locations = Location.objects.only(
         'room_name', 'floor_location', 'x_coordinate', 'y_coordinate'
