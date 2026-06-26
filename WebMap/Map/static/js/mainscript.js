@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const loc = JSON.parse(saved);
             locationName.textContent = loc.name || 'Unknown Room';
             locationDetail.textContent = loc.detail || '';
-            locationDot.style.background = '#00c853'; // green = active
+            locationDot.style.background = '#00c853';
         }
     }
     loadScannedLocation();

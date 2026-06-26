@@ -58,7 +58,7 @@
     scene.add(modelRoot);
 
     /* -----------------------------
-    🧱 SIMPLE HALLWAY (NEW)
+     SIMPLE HALLWAY (NEW)
     ----------------------------- */
         function createSimpleHallway() {
             const group = new THREE.Group();
