@@ -164,21 +164,6 @@
                 if (isScanning) return;
                 isScanning = true;
 
-                // ✅ only load Dynamsoft when user actually scans
-                if (typeof Dynamsoft === 'undefined') {
-                    await new Promise((resolve, reject) => {
-                        const script = document.createElement('script');
-                        script.src = 'https://cdn.jsdelivr.net/npm/dynamsoft-barcode-reader-bundle@11.2.4000/dist/dbr.bundle.js';
-                        script.onload = resolve;
-                        script.onerror = reject;
-                        document.head.appendChild(script);
-                    });
-                }
-                if (isScanning) {
-                    console.log('Already scanning');
-                    return;
-                }
-
                 try {
                     isScanning = true;
 
