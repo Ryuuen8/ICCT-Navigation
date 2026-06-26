@@ -125,7 +125,6 @@ def get_pathfind_graph():
 class LocationViewSet(viewsets.ModelViewSet):
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
-    permission_classes = [IsAdminUser]
 
     def perform_create(self, serializer):
         serializer.save()
@@ -143,7 +142,7 @@ class LocationViewSet(viewsets.ModelViewSet):
 class ConnectionViewSet(viewsets.ModelViewSet):
     queryset = Connection.objects.select_related('from_location', 'to_location').all()
     serializer_class = ConnectionSerializer
-    permission_classes = [IsAdminUser]
+
 
     def perform_create(self, serializer):
         serializer.save()
@@ -161,13 +160,13 @@ class ConnectionViewSet(viewsets.ModelViewSet):
 class AnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.select_related('from_location', 'to_location').all()
     serializer_class = AnnouncementSerializer
-    permission_classes = [IsAdminUser]
+
 
 
 class HazardReportViewSet(viewsets.ModelViewSet):
     queryset = HazardReport.objects.all()
     serializer_class = HazardReportSerializer
-    permission_classes = [IsAdminUser]
+
 
 
 # ─── VIEWS ────────────────────────────────────────────────────────────────────
