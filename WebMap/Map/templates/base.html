@@ -19,6 +19,7 @@
         <!-- Font Awesome -->
         <link rel="stylesheet"
               href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+              <script src="https://cdn.jsdelivr.net/npm/dynamsoft-barcode-reader-bundle@11.2.4000/dist/dbr.bundle.js"></script>
         <!-- jsQR for camera-based QR decoding -->
         <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
         <!-- Leaflet JavaScript -->
@@ -528,16 +529,11 @@
                 <a href="#" onclick="scan(); return false;" class="scan-btn">
                     <i class="fa fa-qrcode"></i>
                 </a>
+                <a href="{% url 'mainmap' %}" class="{% block nav_map %}{% endblock %}">
+                <i class="fa fa-map"></i>
+                <span>Map</span>
+            </a>
             </div>
-            <a href="{% url 'emergency' %}"
-               class="{% block nav_emergency %}{% endblock %}">
-                <i class="fa fa-exclamation-circle"></i>
-                <span>Emergency</span>
-            </a>
-            <a>
-                <i class="fa-solid fa-ellipsis"></i>
-                <span>More</span>
-            </a>
         </nav>
         {% block extra_scripts %}
         {% endblock extra_scripts %}

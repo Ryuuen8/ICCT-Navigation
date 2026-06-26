@@ -12,7 +12,6 @@ urlpatterns = [
     path('', views.announcement, name='main'),
     path('', include('pwa.urls')),  
     path('map/', views.index, name='mainmap'),
-    path('emergency/', views.emergency, name="emergency"),
     path('admin-dashboard/', views.admin_dashboard, name="adminds"),
     path('admin-editor/', views.admin_management, name="map-editor"),
     path('floormap/', views.floormap, name="floormap"),
