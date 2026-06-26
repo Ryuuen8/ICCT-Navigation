@@ -566,7 +566,7 @@ function startPulse(decorator) {
             offset: 0,
             repeat: 40,
             symbol: L.Symbol.arrowHead({
-                pixelSize: 12,
+                pixelSize: 7,
                 polygon: false,
                 pathOptions: { color: 'red', weight: 2, opacity }
             })
