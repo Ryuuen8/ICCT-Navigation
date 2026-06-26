@@ -822,6 +822,7 @@ body::-webkit-scrollbar {
     justify-content: space-around;
 
     z-index: 9999;
+    padding: 0 16px;
 }
 
 .bottom-nav a:not(.scan-btn) {
@@ -841,6 +842,8 @@ body::-webkit-scrollbar {
     position: relative;
     display: flex;
     justify-content: center;
+    align-items: center;
+    height: 100%;
 }
 
 .scan-btn {
@@ -855,4 +858,12 @@ body::-webkit-scrollbar {
     align-items: center;
     justify-content: center;
     box-shadow: 0 8px 24px rgba(45, 92, 255, 0.25);
+    text-decoration: none;
+    color: #04145d;
+    font-size: 1.8rem;
+}
+
+.scan-btn i {
+    font-size: 2rem;
+    color: #04145d;
 }

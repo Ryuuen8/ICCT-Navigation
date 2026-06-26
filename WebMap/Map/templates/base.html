@@ -500,21 +500,25 @@
             {% block content %}{% endblock %}
         </main>
         <!-- BOTTOM NAV (ALWAYS PRESENT) -->
-        <nav class="bottom-nav">
-            <a href="{% url 'main' %}" class="{% block nav_home %}{% endblock %}">
-                <i class="fa fa-home"></i>
-                <span>Home</span>
-            </a>
-            <!-- CENTER SCAN BUTTON -->
-            <div id="reader" class="scan-btn-container">
-                <a href="#" onclick="scan(); return false;" class="scan-btn">
-                    <i class="fa fa-qrcode"></i>
-                </a>
-                <a href="{% url 'mainmap' %}" class="{% block nav_map %}{% endblock %}">
-                <i class="fa fa-map"></i>
-                <span>Map</span>
-            </a>
-            </div>
+<nav class="bottom-nav">
+    <a href="{% url 'main' %}" class="{% block nav_home %}{% endblock %}">
+        <i class="fa fa-home"></i>
+        <span>Home</span>
+    </a>
+
+    <!-- CENTER SCAN BUTTON -->
+    <div class="scan-btn-container">
+        <a href="#" onclick="scan(); return false;" class="scan-btn">
+            <i class="fa fa-qrcode"></i>
+        </a>
+    </div>
+
+    <a href="{% url 'mainmap' %}" class="{% block nav_map %}{% endblock %}">
+        <i class="fa fa-map"></i>
+        <span>Map</span>
+    </a>
+</nav>
+    </div>
         </nav>
         {% block extra_scripts %}
         {% endblock extra_scripts %}
