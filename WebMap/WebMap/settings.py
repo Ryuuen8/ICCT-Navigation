@@ -209,6 +209,11 @@ CACHES = {
 }
 
 STORAGES = {
+    # 1. Media File Storage (Handles your ImageField uploads)
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    # 2. Static File Storage (Handles your WhiteNoise production assets)
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
