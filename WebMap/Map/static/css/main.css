@@ -857,21 +857,19 @@ body::-webkit-scrollbar {
 }
 
 .scan-btn {
-    position: relative;
-    bottom: 14px;
     width: 70px;
     height: 70px;
-    flex: 0 0 auto;
-    background: white;
     background: linear-gradient(white, white) padding-box,
         linear-gradient(to right, rgb(93, 93, 245), rgb(118, 105, 192)) border-box;
     border-radius: 50%;
     border: 3px solid white;
-    display: flex !important;
+    display: flex;
     justify-content: center;
     align-items: center;
     box-shadow: 0 6px 20px rgba(45, 92, 255, 0.18);
     z-index: 9999;
+    position: relative; /* keep relative for stacking */
+    bottom: 0; /* reset the offset */
 }
 
 .scan-btn i {
